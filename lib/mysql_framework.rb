@@ -1,6 +1,5 @@
 require 'mysql2'
 
-require_relative 'mysql_framework/connector'
 require_relative 'mysql_framework/logger'
 require_relative 'mysql_framework/sql_column'
 require_relative 'mysql_framework/sql_condition'

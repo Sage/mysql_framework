@@ -7,5 +7,7 @@ group :test, :development do
 end
 
 group :test do
+  gem 'guard'
+  gem 'guard-rspec'
   gem 'simplecov', require: false
 end
