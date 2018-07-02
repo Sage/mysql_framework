@@ -1,4 +1,7 @@
 language: ruby
+services:
+  - mysql
+  - redis-server
 rvm:
   - 2.3.5
 before_script:

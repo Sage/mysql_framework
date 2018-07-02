@@ -10,7 +10,7 @@ describe MysqlFramework do
   end
 
   describe 'set_logger' do
-    let(:logger) { double }
+    let(:logger) { Logger.new(STDOUT) }
 
     it 'sets the logger' do
       subject.set_logger(logger)
