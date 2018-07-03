@@ -3,6 +3,7 @@ services:
   - mysql
   - redis-server
 rvm:
+  - 2.4.0
   - 2.5.0
 before_script:
   - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64
@@ -14,3 +15,12 @@ after_script:
 env:
   global:
     secure: kxLjg7wpaHBxceZE6d7LdG5FGiZtSxwsQcuJjdlGryt4ZBukW8fpymN0KNdx3V9w2UH4NCqAdx0EZR2ano/VAQ6tOhAVS70LLl0PmNJqzv9TtFhD8vqc+tCHmoKk8hiAJDY9qmp3zmyp3Wlp2C/SvnqvGj/P0/g2mqWijzh+y9//s8ZJaEJkJ0o+iSCf1QlRI44/FidHnNPCmaY13dAikOCOykxQK34wMsXLG7LilyKFe7mwr0yo67ZlwDxbFs3AhCZirfkYbkDy22GhQCmLyiA/iWV7jovWSJ07spATOHlxvtDEXpkSNJq6hc5PKNT0g1H0hxVBwzC9cWxKpMmO/LRSDoXFa1ZOSU91C+EAQio3wPoXu6tOX5w6YrPI8kgZVOyPuIVKw4s0u0hktVEe4DU0VNCmNm7+Y8ase3bh9IAJLKRxzNwQsWNMW53qWIK9D5oyxHFFmUuNNiPi22xm99bF2wz4OTg65o25TIMuHXKqjli2nn0Y8MWgDzFcvf+y4mpvwzv3cWmAKJeU0LBlwzi0CQgZ9rewAJcWPakNsBcQl9xXLo2UzNpDGQKWXHLKfKST32Q3+A0zK8/XhkvSNH+ws/bbgoAOwrUJnhWZTQ6BPQFpaLk/pJtanfrAWOKB5jWeB8ErwmF/uU5fR537xqWEK1QIq1T9QvsdzaeYO08=
+deploy:
+  provider: rubygems
+  api_key:
+    secure: FYZP52Y2n2JR8YJ2YdFpnJ8/0KVAa4yfpH7580VZFSRYiDZQ17teaFbVhhB5tlrODweo6eXYNQLyvhZnifEpw7zP/0lcGrc7wLrbRxmYPgMO8520W2HxPpp4nFu+y/LgVB/bOL2VOtuiCnG0ps/iuNiNdc76jvie1dZzkknfuoAM2RmUJasgFEVtlrDBypsSF0cCtDQiw0NpkrcHdrndGFdSuqEWHgWGmSpQmlJ+3u8bEWwB+AtNf5k6CsOrNilY1T8VAGnh+bk5P9+ngysjIBWR71pWdVQ1wieEFJyeVf5dBmG9HyOdsjcWZYiVtokcemNP+Spr6NX/ZdMEMUcu9/gv6IyvgPYjGrx4r+zH3A1o4G5wPCMbN5CDrCYybpsW9KZE7/FKhdCDHnKf8ajk6QgzW8cd0abup/O/Nj172vxY059Py2h8Jn8OvlnE2/aG+42poNQaLHO1t04/8VwnDkAnFQD2nU5Fvsr3OEKKdzCviXMk3W9xAxdg4lYTHLIdDRoqRMsors4ZwgJhyPEFlBzJ4RrkRkSLWMDbnLaIErl8KKz1LdjDs08tV322ZUyY+UN8XZwpAR+YC6MyswFI4EyTNtGvFDrcm/YoB7wJG0Rjl3cmEjUl/DZVAYVr3btOSL/Nm/C1TK852Lda/ors/HHA8DeaRDw7GjH3odXQxxQ=
+  gem: mysql_framework
+  on:
+    tags: true
+    repo: Sage/mysql_framework
+    condition: "$TRAVIS_RUBY_VERSION == 2.5.0"
