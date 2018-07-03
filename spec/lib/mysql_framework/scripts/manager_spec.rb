@@ -130,7 +130,9 @@ describe MysqlFramework::Scripts::Manager do
 
   describe '#drop_script_history' do
     it 'drops the migration script history table' do
-      query  = "DROP TABLE IF EXISTS `#{ENV.fetch('MYSQL_DATABASE')}`.`migration_script_history`"
+      query = <<~SQL
+        DROP TABLE IF EXISTS `#{ENV.fetch('MYSQL_DATABASE')}`.`migration_script_history`
+      SQL
       expect(connector).to receive(:query).with(query)
       subject.drop_script_history
     end
@@ -138,7 +140,9 @@ describe MysqlFramework::Scripts::Manager do
 
   describe '#drop_table' do
     it 'drops the given table' do
-      expect(connector).to receive(:query).with('DROP TABLE IF EXISTS `some_database`.`some_table`')
+      expect(connector).to receive(:query).with(<<~SQL)
+        DROP TABLE IF EXISTS `some_database`.`some_table`
+      SQL
       subject.drop_table('`some_database`.`some_table`')
     end
   end

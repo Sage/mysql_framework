@@ -48,8 +48,9 @@ module MysqlFramework
       def retrieve_last_executed_script
         MysqlFramework.logger.info { "[#{self.class}] - Retrieving last executed script from history." }
 
-        result = mysql_connector.query("SELECT `identifier` FROM #{migration_table_name}
-                                        ORDER BY `identifier` DESC")
+        result = mysql_connector.query(<<~SQL)
+          SELECT `identifier` FROM #{migration_table_name} ORDER BY `identifier` DESC
+        SQL
 
         if result.each.to_a.length.zero?
           0
@@ -61,14 +62,14 @@ module MysqlFramework
       def initialize_script_history
         MysqlFramework.logger.info { "[#{self.class}] - Initializing script history." }
 
-        mysql_connector.query("
+        mysql_connector.query(<<~SQL)
           CREATE TABLE IF NOT EXISTS #{migration_table_name} (
             `identifier` CHAR(15) NOT NULL,
             `timestamp` DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (`identifier`),
             UNIQUE INDEX `identifier_UNIQUE` (`identifier` ASC)
           )
-        ")
+        SQL
       end
 
       def calculate_pending_scripts(last_executed_script)
@@ -79,7 +80,9 @@ module MysqlFramework
       end
 
       def table_exists?(table_name)
-        result = mysql_connector.query("SHOW TABLES LIKE '#{table_name}'")
+        result = mysql_connector.query(<<~SQL)
+          SHOW TABLES LIKE '#{table_name}'
+        SQL
         result.count == 1
       end
 
@@ -88,7 +91,9 @@ module MysqlFramework
       end
 
       def drop_table(table_name)
-        mysql_connector.query("DROP TABLE IF EXISTS #{table_name}")
+        mysql_connector.query(<<~SQL)
+          DROP TABLE IF EXISTS #{table_name}
+        SQL
       end
 
       def all_tables
@@ -123,9 +128,9 @@ module MysqlFramework
         MysqlFramework.logger.info { "[#{self.class}] - Applying script: #{script}." }
 
         script.apply
-        mysql_connector.query("INSERT INTO #{migration_table_name}
-                              (`identifier`, `timestamp`)
-                              VALUES ('#{script.identifier}', NOW())")
+        mysql_connector.query(<<~SQL)
+          INSERT INTO #{migration_table_name} (`identifier`, `timestamp`) VALUES ('#{script.identifier}', NOW())
+        SQL
       end
     end
   end

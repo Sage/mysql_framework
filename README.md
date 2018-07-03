@@ -38,18 +38,21 @@ class CreateDemoTable < MysqlFramework::Scripts::Base
   end
 
   def apply
-   mysql_connector.query("
+   mysql_connector.query(<<~SQL)
       CREATE TABLE IF NOT EXISTS `#{database_name}`.`demo` (
         `id` CHAR(36) NOT NULL,
         `name` VARCHAR(255) NULL,
         `created_at` DATETIME NOT NULL,
         `updated_at` DATETIME NOT NULL,
         PRIMARY KEY (`id`)
-      )")
+      )
+    SQL
   end
 
   def rollback
-    mysql_connector.query("DROP TABLE IF EXISTS `#{database_name}`.`demo`")
+    mysql_connector.query(<<~SQL)
+      DROP TABLE IF EXISTS `#{database_name}`.`demo`
+    SQL
   end
 
   def tags
@@ -102,7 +105,9 @@ The connector deals with the connection pooling of `MySQL2::Client` instances, p
 
 ```ruby
 connector = MysqlFramework::Connector.new
-connector.query("SELECT * FROM gems")
+connector.query(<<~SQL)
+  SELECT * FROM gems
+SQL
 ```
 
 Options can be provided to override the defaults as follows:
@@ -143,7 +148,9 @@ Called with a block. The method checks out a client from the pool and yields it 
 
 ```ruby
 connector.with_client do |client|
-  client.query('SELECT * FROM gems')
+  client.query(<<~SQL)
+    SELECT * FROM gems
+  SQL
 end
 ```
 
@@ -164,7 +171,9 @@ connector.execute(insert)
 This method is called to execute a query without having to worry about obtaining a client
 
 ```ruby
-connector.query('SELECT * FROM versions')
+connector.query(<<~SQL)
+  SELECT * FROM versions
+SQL
 ```
 
 #### #transaction
