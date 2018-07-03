@@ -9,7 +9,7 @@ module MysqlFramework
         end
 
         def apply
-          mysql_connector.query("
+          mysql_connector.query(<<~SQL)
             CREATE TABLE IF NOT EXISTS `#{database_name}`.`test` (
               `id` CHAR(36) NOT NULL,
               `name` VARCHAR(255) NULL,
@@ -17,7 +17,8 @@ module MysqlFramework
               `created_at` DATETIME NOT NULL,
               `updated_at` DATETIME NOT NULL,
               PRIMARY KEY (`id`)
-            )")
+            )
+            SQL
         end
 
         def rollback

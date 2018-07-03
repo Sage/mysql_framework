@@ -67,7 +67,11 @@ describe MysqlFramework::Scripts::Base do
   describe '#update_procedure' do
     let(:connector) { MysqlFramework::Connector.new }
     let(:proc_file_path) { 'spec/support/procedure.sql' }
-    let(:drop_sql) { "DROP PROCEDURE IF EXISTS GetAllVersions;" }
+    let(:drop_sql) do
+      <<~SQL
+        DROP PROCEDURE IF EXISTS test_procedure;
+      SQL
+    end
 
     before :each do
       subject.instance_variable_set(:@mysql_connector, connector)
@@ -76,12 +80,12 @@ describe MysqlFramework::Scripts::Base do
     it 'drops and then creates the named procedure' do
       expect(connector).to receive(:query).with(drop_sql).once
       expect(connector).to receive(:query).with(File.read(proc_file_path)).once
-      subject.update_procedure('GetAllVersions', proc_file_path)
+      subject.update_procedure('test_procedure', proc_file_path)
     end
 
     it 'wraps the call in a transaction' do
       expect(connector).to receive(:transaction)
-      subject.update_procedure('GetAllVersions', proc_file_path)
+      subject.update_procedure('test_procedure', proc_file_path)
     end
   end
 end
