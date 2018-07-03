@@ -4,7 +4,6 @@ module MysqlFramework
   module Scripts
     class Manager
       def execute
-
         lock_manager.lock(self.class, 2000) do |locked|
           raise unless locked
 

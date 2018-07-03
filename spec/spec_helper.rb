@@ -17,6 +17,7 @@ require 'securerandom'
 
 require_relative 'support/scripts/create_test_table'
 require_relative 'support/scripts/create_demo_table'
+require_relative 'support/scripts/create_test_proc'
 require_relative 'support/tables/test'
 require_relative 'support/tables/demo'
 

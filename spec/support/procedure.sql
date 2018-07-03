@@ -1,4 +1,5 @@
-CREATE PROCEDURE GetAllVersions()
+CREATE PROCEDURE `test_procedure`()
 BEGIN
-  SELECT * FROM versions;
+  SELECT * FROM demo;
+  SELECT * FROM test;
 END

@@ -51,9 +51,10 @@ describe MysqlFramework::Scripts::Base do
 
   describe '.descendants' do
     it 'returns all descendant classes' do
-      expect(described_class.descendants.length).to eq(2)
+      expect(described_class.descendants.length).to eq(3)
       expect(described_class.descendants).to include(MysqlFramework::Support::Scripts::CreateTestTable,
-                                                     MysqlFramework::Support::Scripts::CreateDemoTable)
+                                                     MysqlFramework::Support::Scripts::CreateDemoTable,
+                                                     MysqlFramework::Support::Scripts::CreateTestProc)
     end
   end
 

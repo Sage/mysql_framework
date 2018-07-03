@@ -38,8 +38,7 @@ module MysqlFramework
 
       def update_procedure(proc_name, proc_file)
         mysql_connector.transaction do
-          sql = "DROP PROCEDURE IF EXISTS #{proc_name};"
-          mysql_connector.query(sql)
+          mysql_connector.query("DROP PROCEDURE IF EXISTS #{proc_name};")
 
           proc_sql = File.read(proc_file)
 

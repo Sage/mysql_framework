@@ -113,7 +113,45 @@ describe MysqlFramework::Connector do
   end
 
   describe '#query_multiple_results' do
-    # TODO
+    let(:test) { MysqlFramework::SqlTable.new('test') }
+    let(:manager) { MysqlFramework::Scripts::Manager.new }
+    let(:connector) { MysqlFramework::Connector.new }
+    let(:timestamp) { Time.at(628232400) } # 1989-11-28 00:00:00 -0500
+    let(:guid) { 'a3ccb138-48ae-437a-be52-f673beb12b51' }
+    let(:insert) do
+      MysqlFramework::SqlQuery.new.insert(test)
+        .into(test[:id],test[:name],test[:action],test[:created_at],test[:updated_at])
+        .values(guid,'name','action',timestamp,timestamp)
+    end
+    let(:obj) do
+      {
+        id: guid,
+        name: 'name',
+        action: 'action',
+        created_at: timestamp,
+        updated_at: timestamp,
+      }
+    end
+
+    before :each do
+      manager.initialize_script_history
+      manager.execute
+
+      connector.execute(insert)
+    end
+
+    after :each do
+      manager.drop_all_tables
+    end
+
+    it 'returns the results from the stored procedure' do
+      query = "call test_procedure"
+      result = subject.query_multiple_results(query)
+      expect(result).to be_a(Array)
+      expect(result.length).to eq(2)
+      expect(result[0]).to eq([])
+      expect(result[1]).to eq([obj])
+    end
   end
 
   describe '#transaction' do

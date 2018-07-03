@@ -76,7 +76,7 @@ describe MysqlFramework::Scripts::Manager do
       end
 
       it 'returns the last executed script' do
-        expect(subject.retrieve_last_executed_script).to eq(201801011030)
+        expect(subject.retrieve_last_executed_script).to eq(201807031200)
       end
     end
 
@@ -98,7 +98,7 @@ describe MysqlFramework::Scripts::Manager do
       timestamp = 201701010000 # 00:00 01/01/2017
       results = subject.calculate_pending_scripts(timestamp)
 
-      expect(results.length).to eq(2)
+      expect(results.length).to eq(3)
       expect(results[0]).to be_a(MysqlFramework::Support::Scripts::CreateTestTable)
       expect(results[1]).to be_a(MysqlFramework::Support::Scripts::CreateDemoTable)
     end
@@ -108,7 +108,7 @@ describe MysqlFramework::Scripts::Manager do
         timestamp = 201802021010 # 10:10 02/02/2018
         results = subject.calculate_pending_scripts(timestamp)
 
-        expect(results.length).to eq(1)
+        expect(results.length).to eq(2)
         expect(results[0]).to be_a(MysqlFramework::Support::Scripts::CreateDemoTable)
       end
     end
