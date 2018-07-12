@@ -24,11 +24,11 @@ module MysqlFramework
     end
 
     # This method is called to use a client from the connection pool.
-    def with_client
-      client = check_out
+    def with_client(provided = nil)
+      client = provided || check_out
       yield client
     ensure
-      check_in(client) unless client.nil?
+      check_in(client) unless provided
     end
 
     # This method is called to execute a prepared statement

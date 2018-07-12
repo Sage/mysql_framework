@@ -66,7 +66,12 @@ describe MysqlFramework::Connector do
   end
 
   describe '#with_client' do
-    it 'obtains a client from the pool to use' do
+    it 'uses the client that is provided, if passed one' do
+      expect(subject).not_to receive(:check_out)
+      expect { |b| subject.with_client(client, &b) }.to yield_with_args(client)
+    end
+
+    it 'obtains a client from the pool to use, if no client is provided' do
       allow(subject).to receive(:check_out).and_return(client)
       expect { |b| subject.with_client(&b) }.to yield_with_args(client)
     end
