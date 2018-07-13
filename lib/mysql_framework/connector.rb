@@ -32,21 +32,21 @@ module MysqlFramework
     end
 
     # This method is called to execute a prepared statement
-    def execute(query)
-      with_client do |client|
+    def execute(query, provided_client = nil)
+      with_client(provided_client) do |client|
         statement = client.prepare(query.sql)
         statement.execute(*query.params)
       end
     end
 
     # This method is called to execute a query
-    def query(query_string)
-      with_client { |client| client.query(query_string) }
+    def query(query_string, provided_client = nil)
+      with_client(provided_client) { |client| client.query(query_string) }
     end
 
     # This method is called to execute a query which will return multiple result sets in an array
-    def query_multiple_results(query_string)
-      with_client do |client|
+    def query_multiple_results(query_string, provided_client = nil)
+      with_client(provided_client) do |client|
         result = []
         result << client.query(query_string).to_a
         result << client.store_result&.to_a while client.next_result
@@ -72,11 +72,11 @@ module MysqlFramework
 
     def default_options
       {
-        host:      ENV.fetch('MYSQL_HOST'),
-        port:      ENV.fetch('MYSQL_PORT'),
-        database:  ENV.fetch('MYSQL_DATABASE'),
-        username:  ENV.fetch('MYSQL_USERNAME'),
-        password:  ENV.fetch('MYSQL_PASSWORD'),
+        host: ENV.fetch('MYSQL_HOST'),
+        port: ENV.fetch('MYSQL_PORT'),
+        database: ENV.fetch('MYSQL_DATABASE'),
+        username: ENV.fetch('MYSQL_USERNAME'),
+        password: ENV.fetch('MYSQL_PASSWORD'),
         reconnect: true
       }
     end

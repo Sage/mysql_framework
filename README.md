@@ -114,11 +114,11 @@ Options can be provided to override the defaults as follows:
 
 ```ruby
 options = {
-  host:      ENV.fetch('MYSQL_HOST'),
-  port:      ENV.fetch('MYSQL_PORT'),
-  database:  ENV.fetch('MYSQL_DATABASE'),
-  username:  ENV.fetch('MYSQL_USERNAME'),
-  password:  ENV.fetch('MYSQL_PASSWORD'),
+  host: ENV.fetch('MYSQL_HOST'),
+  port: ENV.fetch('MYSQL_PORT'),
+  database: ENV.fetch('MYSQL_DATABASE'),
+  username: ENV.fetch('MYSQL_USERNAME'),
+  password: ENV.fetch('MYSQL_PASSWORD'),
   reconnect: true
 }
 MysqlFramework::Connector.new(options)
@@ -154,6 +154,16 @@ connector.with_client do |client|
 end
 ```
 
+It can optionally accept an existing client to avoid starting new connections in the middle of a transaction. This can be used to ensure that a series of queries are wrapped by the same transaction.
+
+```ruby
+connector.with_client(existing_client) do |client|
+  client.query(<<~SQL)
+    SELECT * FROM gems
+  SQL
+end
+```
+
 #### #execute
 
 This method is called when executing a prepared statement where value substitution is required:
@@ -166,12 +176,30 @@ insert = MysqlFramework::SqlQuery.new.insert(gems)
 connector.execute(insert)
 ```
 
+It can optionally accept an existing client to avoid checking out a new client.
+
+```ruby
+insert = MysqlFramework::SqlQuery.new.insert(gems)
+  .into(gems[:id],gems[:name],gems[:author],gems[:created_at],gems[:updated_at])
+  .values(SecureRandom.uuid,'mysql_framework','sage',Time.now,Time.now)
+
+connector.execute(insert, existing_client)
+```
+
 #### #query
 
 This method is called to execute a query without having to worry about obtaining a client
 
 ```ruby
 connector.query(<<~SQL)
+  SELECT * FROM versions
+SQL
+```
+
+It can optionally accept an existing client to avoid checking out a new client.
+
+```ruby
+connector.query(<<~SQL, existing_client)
   SELECT * FROM versions
 SQL
 ```
@@ -196,11 +224,11 @@ The default options used to initialise MySQL2::Client instances:
 
 ```ruby
 {
-  host:      ENV.fetch('MYSQL_HOST'),
-  port:      ENV.fetch('MYSQL_PORT'),
-  database:  ENV.fetch('MYSQL_DATABASE'),
-  username:  ENV.fetch('MYSQL_USERNAME'),
-  password:  ENV.fetch('MYSQL_PASSWORD'),
+  host: ENV.fetch('MYSQL_HOST'),
+  port: ENV.fetch('MYSQL_PORT'),
+  database: ENV.fetch('MYSQL_DATABASE'),
+  username: ENV.fetch('MYSQL_USERNAME'),
+  password: ENV.fetch('MYSQL_PASSWORD'),
   reconnect: true
 }
 ```
