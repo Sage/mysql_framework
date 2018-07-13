@@ -5,18 +5,18 @@ require 'spec_helper'
 describe MysqlFramework::Connector do
   let(:default_options) do
     {
-      host:      ENV.fetch('MYSQL_HOST'),
-      port:      ENV.fetch('MYSQL_PORT'),
-      database:  ENV.fetch('MYSQL_DATABASE'),
-      username:  ENV.fetch('MYSQL_USERNAME'),
-      password:  ENV.fetch('MYSQL_PASSWORD'),
+      host: ENV.fetch('MYSQL_HOST'),
+      port: ENV.fetch('MYSQL_PORT'),
+      database: ENV.fetch('MYSQL_DATABASE'),
+      username: ENV.fetch('MYSQL_USERNAME'),
+      password: ENV.fetch('MYSQL_PASSWORD'),
       reconnect: true
     }
   end
   let(:options) do
     {
-      host:     'host',
-      port:     'port',
+      host: 'host',
+      port: 'port',
       database: 'database',
       username: 'username',
       password: 'password',
@@ -25,12 +25,14 @@ describe MysqlFramework::Connector do
   end
   let(:client) { double }
   let(:gems) { MysqlFramework::SqlTable.new('gems') }
+  let(:existing_client) { Mysql2::Client.new(default_options) }
 
   subject { described_class.new }
 
   describe '#initialize' do
     it 'sets default query options on the Mysql2 client' do
       subject
+
       expect(Mysql2::Client.default_query_options[:symbolize_keys]).to eq(true)
       expect(Mysql2::Client.default_query_options[:cast_booleans]).to eq(true)
     end
@@ -53,6 +55,7 @@ describe MysqlFramework::Connector do
     context 'when the connection pool has a client available' do
       it 'returns a client instance from the pool' do
         subject.instance_variable_get(:@connection_pool).push(client)
+
         expect(subject.check_out).to eq(client)
       end
     end
@@ -61,6 +64,7 @@ describe MysqlFramework::Connector do
   describe '#check_in' do
     it 'returns the provided client to the connection pool' do
       expect(subject.instance_variable_get(:@connection_pool)).to receive(:push).with(client)
+
       subject.check_in(client)
     end
   end
@@ -104,16 +108,33 @@ describe MysqlFramework::Connector do
       expect(results.length).to eq(1)
       expect(results[0][:id]).to eq(guid)
     end
+
+    it 'does not check out a new client when one is provided' do
+      expect(subject).not_to receive(:check_out)
+
+      guid = insert_query.params[0]
+      subject.execute(insert_query, existing_client)
+
+      results = subject.query("SELECT * FROM `gems` WHERE id = '#{guid}';", existing_client).to_a
+      expect(results.length).to eq(1)
+      expect(results[0][:id]).to eq(guid)
+    end
   end
 
   describe '#query' do
-    before :each do
-      allow(subject).to receive(:check_out).and_return(client)
-    end
+    before(:each) { allow(subject).to receive(:check_out).and_return(client) }
 
     it 'retrieves a client and calls query' do
       expect(client).to receive(:query).with('SELECT 1')
+
       subject.query('SELECT 1')
+    end
+
+    it 'does not check out a new client when one is provided' do
+      expect(subject).not_to receive(:check_out)
+      expect(existing_client).to receive(:query).with('SELECT 1')
+
+      subject.query('SELECT 1', existing_client)
     end
   end
 
@@ -121,12 +142,12 @@ describe MysqlFramework::Connector do
     let(:test) { MysqlFramework::SqlTable.new('test') }
     let(:manager) { MysqlFramework::Scripts::Manager.new }
     let(:connector) { MysqlFramework::Connector.new }
-    let(:timestamp) { Time.at(628232400) } # 1989-11-28 00:00:00 -0500
+    let(:timestamp) { Time.at(628_232_400) } # 1989-11-28 00:00:00 -0500
     let(:guid) { 'a3ccb138-48ae-437a-be52-f673beb12b51' }
     let(:insert) do
       MysqlFramework::SqlQuery.new.insert(test)
-        .into(test[:id],test[:name],test[:action],test[:created_at],test[:updated_at])
-        .values(guid,'name','action',timestamp,timestamp)
+        .into(test[:id], test[:name], test[:action], test[:created_at], test[:updated_at])
+        .values(guid, 'name', 'action', timestamp, timestamp)
     end
     let(:obj) do
       {
@@ -134,7 +155,7 @@ describe MysqlFramework::Connector do
         name: 'name',
         action: 'action',
         created_at: timestamp,
-        updated_at: timestamp,
+        updated_at: timestamp
       }
     end
 
@@ -145,13 +166,24 @@ describe MysqlFramework::Connector do
       connector.execute(insert)
     end
 
-    after :each do
-      manager.drop_all_tables
-    end
+    after(:each) { manager.drop_all_tables }
 
     it 'returns the results from the stored procedure' do
-      query = "call test_procedure"
+      query = 'call test_procedure'
       result = subject.query_multiple_results(query)
+
+      expect(result).to be_a(Array)
+      expect(result.length).to eq(2)
+      expect(result[0]).to eq([])
+      expect(result[1]).to eq([obj])
+    end
+
+    it 'does not check out a new client when one is provided' do
+      expect(subject).not_to receive(:check_out)
+
+      query = 'call test_procedure'
+      result = subject.query_multiple_results(query, existing_client)
+
       expect(result).to be_a(Array)
       expect(result.length).to eq(2)
       expect(result[0]).to eq([])
@@ -160,18 +192,14 @@ describe MysqlFramework::Connector do
   end
 
   describe '#transaction' do
-    before :each do
-      allow(subject).to receive(:check_out).and_return(client)
-    end
+    before(:each) { allow(subject).to receive(:check_out).and_return(client) }
 
     it 'wraps the client call with BEGIN and COMMIT statements' do
       expect(client).to receive(:query).with('BEGIN')
       expect(client).to receive(:query).with('SELECT 1')
       expect(client).to receive(:query).with('COMMIT')
 
-      subject.transaction do
-        subject.query('SELECT 1')
-      end
+      subject.transaction { subject.query('SELECT 1') }
     end
 
     context 'when an exception occurs' do
@@ -183,7 +211,7 @@ describe MysqlFramework::Connector do
           subject.transaction do
             raise
           end
-        rescue
+        rescue StandardError
         end
       end
     end
