@@ -127,5 +127,11 @@ module MysqlFramework
       @sql += " on #{column_1} = #{column_2}"
       self
     end
+
+    # This method is called to add a `group by` statement to a query
+    def group_by(*columns)
+      @sql += " group by #{columns.join(',')}"
+      self
+    end
   end
 end
