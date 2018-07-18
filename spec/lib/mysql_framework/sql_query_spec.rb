@@ -220,4 +220,11 @@ describe MysqlFramework::SqlQuery do
       expect(subject.sql).to eq('on `gems`.`id` = `versions`.`gem_id`')
     end
   end
+
+  describe '#group_by' do
+    it 'appends the sql for a group by statement' do
+      subject.group_by(gems[:created_at], gems[:updated_at])
+      expect(subject.sql).to eq('group by `gems`.`created_at`,`gems`.`updated_at`')
+    end
+  end
 end
