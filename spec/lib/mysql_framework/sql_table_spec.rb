@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
-
 describe MysqlFramework::SqlTable do
   let(:table) { described_class.new('gems') }
 

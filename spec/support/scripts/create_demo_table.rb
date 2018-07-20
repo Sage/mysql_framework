@@ -8,25 +8,34 @@ module MysqlFramework
           @identifier = 201806021520 # 15:20 02/06/2018
         end
 
-        def apply
-          mysql_connector.query(<<~SQL)
-            CREATE TABLE IF NOT EXISTS `#{database_name}`.`demo` (
+        def apply(client)
+          client.query(<<~SQL)
+            CREATE TABLE IF NOT EXISTS `#{table_name}` (
               `id` CHAR(36) NOT NULL,
               `name` VARCHAR(255) NULL,
               `created_at` DATETIME NOT NULL,
-
               `updated_at` DATETIME NOT NULL,
-              PRIMARY KEY (`id`)
+              `partition` INT NOT NULL,
+              PRIMARY KEY (`id`, `partition`)
+            )
+            PARTITION BY LIST(`partition`) (
+              #{generate_partition_sql}
             )
           SQL
         end
 
-        def rollback
+        def rollback(_client)
           raise 'Rollback not supported in test.'
         end
 
         def tags
-          [MysqlFramework::Support::Tables::DemoTable::NAME]
+          [table_name]
+        end
+
+        private
+
+        def table_name
+          MysqlFramework::Support::Tables::DemoTable::NAME
         end
       end
     end

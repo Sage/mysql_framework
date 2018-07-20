@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
-
 describe MysqlFramework do
   describe 'logger' do
     it 'returns the logger' do
@@ -9,11 +7,11 @@ describe MysqlFramework do
     end
   end
 
-  describe 'set_logger' do
+  describe 'logger=' do
     let(:logger) { Logger.new(STDOUT) }
 
     it 'sets the logger' do
-      subject.set_logger(logger)
+      subject.logger = logger
       expect(subject.logger).to eq(logger)
     end
   end

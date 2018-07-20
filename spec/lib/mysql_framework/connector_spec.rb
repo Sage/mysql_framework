@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
-
 describe MysqlFramework::Connector do
+  let(:start_pool_size) { Integer(ENV.fetch('MYSQL_START_POOL_SIZE')) }
+  let(:max_pool_size) { Integer(ENV.fetch('MYSQL_MAX_POOL_SIZE')) }
   let(:default_options) do
     {
       host: ENV.fetch('MYSQL_HOST'),
@@ -15,26 +15,28 @@ describe MysqlFramework::Connector do
   end
   let(:options) do
     {
-      host: 'host',
-      port: 'port',
-      database: 'database',
-      username: 'username',
-      password: 'password',
-      reconnect: true
+      host: ENV.fetch('MYSQL_HOST'),
+      port: ENV.fetch('MYSQL_PORT'),
+      database: "#{ENV.fetch('MYSQL_DATABASE')}_2",
+      username: ENV.fetch('MYSQL_USERNAME'),
+      password: ENV.fetch('MYSQL_PASSWORD'),
+      reconnect: false
     }
   end
-  let(:client) { double }
+  let(:client) { double(close: true) }
   let(:gems) { MysqlFramework::SqlTable.new('gems') }
   let(:existing_client) { Mysql2::Client.new(default_options) }
 
   subject { described_class.new }
 
-  describe '#initialize' do
-    it 'sets default query options on the Mysql2 client' do
-      subject
+  before(:each) { subject.setup }
+  after(:each) { subject.dispose }
 
-      expect(Mysql2::Client.default_query_options[:symbolize_keys]).to eq(true)
-      expect(Mysql2::Client.default_query_options[:cast_booleans]).to eq(true)
+  describe '#initialize' do
+    context 'when options are not provided' do
+      it 'returns the default options' do
+        expect(subject.instance_variable_get(:@options)).to eq(default_options)
+      end
     end
 
     context 'when options are provided' do
@@ -44,26 +46,82 @@ describe MysqlFramework::Connector do
         expect(subject.instance_variable_get(:@options)).to eq(options)
       end
     end
+
+    it 'sets default query options on the Mysql2 client' do
+      subject
+
+      expect(Mysql2::Client.default_query_options[:symbolize_keys]).to eq(true)
+      expect(Mysql2::Client.default_query_options[:cast_booleans]).to eq(true)
+    end
+  end
+
+  describe '#setup' do
+    it 'creates a connection pool with the specified number of conections' do
+      subject.setup
+
+      expect(subject.connections.length).to eq(start_pool_size)
+    end
+  end
+
+  describe '#dispose' do
+    before do
+      subject.connections.clear
+      subject.connections.push(client)
+    end
+
+    it 'closes the idle connections and disposes of the queue' do
+      expect(client).to receive(:close)
+
+      subject.dispose
+
+      expect(subject.connections).to be_nil
+    end
   end
 
   describe '#check_out' do
-    it 'returns a Mysql2::Client instance from the pool' do
-      expect(Mysql2::Client).to receive(:new).with(default_options).and_return(client)
-      expect(subject.check_out).to eq(client)
+    context 'when there are available connections' do
+      before do
+        subject.connections.clear
+        subject.connections.push(client)
+      end
+
+      it 'returns a client instance from the pool' do
+        expect(subject.check_out).to eq(client)
+      end
     end
 
-    context 'when the connection pool has a client available' do
-      it 'returns a client instance from the pool' do
-        subject.instance_variable_get(:@connection_pool).push(client)
+    context "when there are no available connections, and the pool's max size has not been reached" do
+      before do
+        subject.connections.clear
+        subject.connections.push(client)
+      end
 
+      it 'instantiates a new connection and returns it' do
+        subject.check_out
+
+        expect(Mysql2::Client).to receive(:new).with(default_options).and_return(client)
         expect(subject.check_out).to eq(client)
+      end
+    end
+
+    context "when there are no available connections, and the pool's max size has been reached" do
+      before do
+        subject.connections.clear
+        subject.instance_variable_set(:@created_connections, 5)
+
+        5.times { subject.check_in(client) }
+        5.times { subject.check_out }
+      end
+
+      it 'throws a RuntimeError' do
+        expect { subject.check_out }.to raise_error(RuntimeError)
       end
     end
   end
 
   describe '#check_in' do
     it 'returns the provided client to the connection pool' do
-      expect(subject.instance_variable_get(:@connection_pool)).to receive(:push).with(client)
+      expect(subject.connections).to receive(:push).with(client)
 
       subject.check_in(client)
     end
@@ -84,20 +142,8 @@ describe MysqlFramework::Connector do
   describe '#execute' do
     let(:insert_query) do
       MysqlFramework::SqlQuery.new.insert(gems)
-        .into(
-          gems[:id],
-          gems[:name],
-          gems[:author],
-          gems[:created_at],
-          gems[:updated_at]
-        )
-        .values(
-          SecureRandom.uuid,
-          'mysql_framework',
-          'sage',
-          Time.now,
-          Time.now
-        )
+        .into(gems[:id], gems[:name], gems[:author], gems[:created_at], gems[:updated_at])
+        .values(SecureRandom.uuid, 'mysql_framework', 'sage', Time.now, Time.now)
     end
 
     it 'executes the query with parameters' do
@@ -139,43 +185,14 @@ describe MysqlFramework::Connector do
   end
 
   describe '#query_multiple_results' do
-    let(:test) { MysqlFramework::SqlTable.new('test') }
-    let(:manager) { MysqlFramework::Scripts::Manager.new }
-    let(:connector) { MysqlFramework::Connector.new }
-    let(:timestamp) { Time.at(628_232_400) } # 1989-11-28 00:00:00 -0500
-    let(:guid) { 'a3ccb138-48ae-437a-be52-f673beb12b51' }
-    let(:insert) do
-      MysqlFramework::SqlQuery.new.insert(test)
-        .into(test[:id], test[:name], test[:action], test[:created_at], test[:updated_at])
-        .values(guid, 'name', 'action', timestamp, timestamp)
-    end
-    let(:obj) do
-      {
-        id: guid,
-        name: 'name',
-        action: 'action',
-        created_at: timestamp,
-        updated_at: timestamp
-      }
-    end
-
-    before :each do
-      manager.initialize_script_history
-      manager.execute
-
-      connector.execute(insert)
-    end
-
-    after(:each) { manager.drop_all_tables }
-
     it 'returns the results from the stored procedure' do
       query = 'call test_procedure'
       result = subject.query_multiple_results(query)
 
       expect(result).to be_a(Array)
       expect(result.length).to eq(2)
-      expect(result[0]).to eq([])
-      expect(result[1]).to eq([obj])
+      expect(result[0].length).to eq(0)
+      expect(result[1].length).to eq(4)
     end
 
     it 'does not check out a new client when one is provided' do
@@ -186,8 +203,8 @@ describe MysqlFramework::Connector do
 
       expect(result).to be_a(Array)
       expect(result.length).to eq(2)
-      expect(result[0]).to eq([])
-      expect(result[1]).to eq([obj])
+      expect(result[0].length).to eq(0)
+      expect(result[1].length).to eq(4)
     end
   end
 
@@ -208,18 +225,11 @@ describe MysqlFramework::Connector do
         expect(client).to receive(:query).with('ROLLBACK')
 
         begin
-          subject.transaction do
-            raise
-          end
-        rescue StandardError
+          subject.transaction { raise }
+        rescue StandardError => e
+          e.message
         end
       end
-    end
-  end
-
-  describe '#default_options' do
-    it 'returns the default options' do
-      expect(subject.default_options).to eq(default_options)
     end
   end
 end

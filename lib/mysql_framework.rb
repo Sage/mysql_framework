@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'mysql2'
 require 'redlock'
 
@@ -11,5 +13,4 @@ require_relative 'mysql_framework/sql_table'
 require_relative 'mysql_framework/version'
 
 module MysqlFramework
-
 end

@@ -3,19 +3,50 @@
 module MysqlFramework
   class Connector
     def initialize(options = {})
-      @connection_pool = ::Queue.new
-
       @options = default_options.merge(options)
 
       Mysql2::Client.default_query_options.merge!(symbolize_keys: true, cast_booleans: true)
     end
 
-    # This method is called to fetch a client from the connection pool or create a new client if no idle clients
-    # are available.
+    # This method is called to setup a pool of MySQL connections.
+    def setup
+      @connection_pool = ::Queue.new
+
+      start_pool_size.times { @connection_pool.push(Mysql2::Client.new(@options)) }
+
+      @created_connections = start_pool_size
+    end
+
+    # This method is called to close all MySQL connections in the pool and dispose of the pool itself.
+    def dispose
+      return if @connection_pool.nil?
+
+      until @connection_pool.empty?
+        conn = @connection_pool.pop(true)
+        conn.close
+      end
+
+      @connection_pool = nil
+    end
+
+    # This method is called to get the idle connection queue for this connector.
+    def connections
+      @connection_pool
+    end
+
+    # This method is called to fetch a client from the connection pool.
     def check_out
       @connection_pool.pop(true)
-    rescue StandardError
-      Mysql2::Client.new(@options)
+    rescue ThreadError
+      if @created_connections < max_pool_size
+        conn = Mysql2::Client.new(@options)
+        @created_connections += 1
+        return conn
+      end
+
+      MysqlFramework.logger.error { "[#{self.class}] - Database connection pool depleted." }
+
+      raise 'Database connection pool depleted.'
     end
 
     # This method is called to check a client back in to the connection when no longer needed.
@@ -70,6 +101,8 @@ module MysqlFramework
       end
     end
 
+    private
+
     def default_options
       {
         host: ENV.fetch('MYSQL_HOST'),
@@ -79,6 +112,14 @@ module MysqlFramework
         password: ENV.fetch('MYSQL_PASSWORD'),
         reconnect: true
       }
+    end
+
+    def start_pool_size
+      @start_pool_size ||= Integer(ENV.fetch('MYSQL_START_POOL_SIZE', 1))
+    end
+
+    def max_pool_size
+      @max_pool_size ||= Integer(ENV.fetch('MYSQL_MAX_POOL_SIZE', 5))
     end
   end
 end

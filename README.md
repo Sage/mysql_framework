@@ -5,7 +5,7 @@
 [![Test Coverage](https://api.codeclimate.com/v1/badges/36068a1f03ea88d08b86/test_coverage)](https://codeclimate.com/github/Sage/mysql_framework/test_coverage)
 [![Gem Version](https://badge.fury.io/rb/mysql_framework.svg)](https://badge.fury.io/rb/mysql_framework)
 
-Welcome to Mysql_Framework, this is a light weight framework that provides managers to help with interacting with mysql
+Welcome to Mysql_Framework, this is a lightweight framework that provides managers to help with interacting with mysql.
 
 ## Installation
 
@@ -19,13 +19,28 @@ gem 'mysql_framework'
 
 ### Environment Variables
 
+#### MySQL Connection Variables
+
 * `MYSQL_HOST` - MySQL Host
 * `MYSQL_PORT` - MySQL Port
 * `MYSQL_DATABASE` - MySQL database name
 * `MYSQL_USERNAME` - MySQL username
 * `MYSQL_PASSWORD` - MySQL password
-* `MYSQL_PARTITIONS` - The number of partitions where a table is partitioned (default: `500`)
+
+#### MySQL Connection Pooling Variables
+
+* `MYSQL_START_POOL_SIZE` - how many connections should be created by default (default: `1`)
+* `MYSQL_MAX_POOL_SIZE` - how many connections should the pool be allowed to grow to (default: `5`)
+
+#### MySQL Migration Variables
+
+* `MYSQL_MIGRATION_TABLE` - the name of the table that holds a record of applied migrations (default: `migration_script_history`)
+* `MYSQL_MIGRATION_LOCK_TTL` - how long the tables should be locked for whilst performing migrations (default: `2000` / `2 seconds`)
 * `REDIS_URL` - The URL for redis - used for managing locks for DB migrations
+
+#### Miscellaneous Variables
+
+* `MYSQL_PARTITIONS` - if a table is partitioned, how many partitions should be created (default: `500`)
 
 ### Migration Scripts
 
@@ -37,9 +52,9 @@ class CreateDemoTable < MysqlFramework::Scripts::Base
     @identifier = 201806021520 # 15:20 02/06/2018
   end
 
-  def apply
-   mysql_connector.query(<<~SQL)
-      CREATE TABLE IF NOT EXISTS `#{database_name}`.`demo` (
+  def apply(client)
+   client.query(<<~SQL)
+      CREATE TABLE IF NOT EXISTS `#{table_name}` (
         `id` CHAR(36) NOT NULL,
         `name` VARCHAR(255) NULL,
         `created_at` DATETIME NOT NULL,
@@ -49,14 +64,20 @@ class CreateDemoTable < MysqlFramework::Scripts::Base
     SQL
   end
 
-  def rollback
-    mysql_connector.query(<<~SQL)
-      DROP TABLE IF EXISTS `#{database_name}`.`demo`
+  def rollback(client)
+    client.query(<<~SQL)
+      DROP TABLE IF EXISTS `#{table_name}`
     SQL
   end
 
   def tags
-    [DemoTable::NAME]
+    [table_name]
+  end
+
+  private
+
+  def table_name
+    DemoTable::NAME
   end
 end
 ```
@@ -71,13 +92,13 @@ The initialize method should set the `@identifier` value, which should be a time
 
 #### #apply
 
-The `apply` method should action the migration. An instance of the `MysqlFramework::Connector` is
-available as `mysql_connector` to use.
+The `apply` method should action the migration. An instance of `Mysql2::Client` is
+available as `client` to use.
 
 #### #rollback
 
-The `rollback` method should action the migration. An instance of the `MysqlFramework::Connector`
-is available as `mysql_connector` to use.
+The `rollback` method should action the migration. An instance of `Mysql2::Client` is
+available as `client` to use.
 
 #### #tags
 
@@ -105,6 +126,7 @@ The connector deals with the connection pooling of `MySQL2::Client` instances, p
 
 ```ruby
 connector = MysqlFramework::Connector.new
+connector.setup
 connector.query(<<~SQL)
   SELECT * FROM gems
 SQL
@@ -124,9 +146,25 @@ options = {
 MysqlFramework::Connector.new(options)
 ```
 
+#### #setup
+
+Sets up the connection pooling. Creates `ENV['MYSQL_START_POOL_SIZE']` `Mysql2::Client` instances up front. This is provided as a separate method to allow for use within process forking where connections would need to be created after forking the process.
+
+```ruby
+connector.setup
+```
+
+#### #dispose
+
+Closes all the `Mysql2::Client` connections and removes the connection pool. Intended as a clean-up method to be used on process fork shutdown.
+
+```ruby
+connector.dispose
+```
+
 #### #check_out
 
-Check out a client from the connection pool
+Check out a client from the connection pool. Will create new `Mysql2::Client` instances up-to `ENV['MYSQL_MAX_POOL_SIZE']` times if no idle connections are available.
 
 ```ruby
 client = connector.check_out
@@ -284,10 +322,10 @@ MysqlFramework::SqlTable.new('gems')
 
 ### Configuring Logs
 
-As a default, `MysqlFramework` will log to `STDOUT`. You can provide your own logger using the `set_logger` method:
+As a default, `MysqlFramework` will log to `STDOUT`. You can provide your own logger using the `logger=` method:
 
 ```ruby
-MysqlFramework.set_logger(Logger.new('development.log'))
+MysqlFramework.logger = Logger.new('development.log')
 ```
 
 ## Contributing

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
-
 describe MysqlFramework::SqlColumn do
   subject { described_class.new(table: 'gems', column: 'version') }
 

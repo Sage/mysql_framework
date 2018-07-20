@@ -3,29 +3,17 @@
 module MysqlFramework
   module Scripts
     class Base
-      def partitions
-        ENV.fetch('MYSQL_PARTITIONS', '500').to_i
-      end
-
-      def database_name
-        @database_name ||= ENV.fetch('MYSQL_DATABASE')
-      end
-
       def identifier
         raise NotImplementedError if @identifier.nil?
         @identifier
       end
 
-      def apply
+      def apply(_client)
         raise NotImplementedError
       end
 
-      def rollback
+      def rollback(_client)
         raise NotImplementedError
-      end
-
-      def generate_partition_sql
-        (1..partitions).each_with_index.map { |_, i| "PARTITION p#{i} VALUES IN (#{i})" }.join(",\n\t")
       end
 
       def self.descendants
@@ -36,22 +24,26 @@ module MysqlFramework
         []
       end
 
-      def update_procedure(proc_name, proc_file)
-        mysql_connector.transaction do
-          mysql_connector.query(<<~SQL)
-            DROP PROCEDURE IF EXISTS #{proc_name};
-          SQL
+      def update_procedure(client, proc_name, proc_file)
+        client.query(<<~SQL)
+          DROP PROCEDURE IF EXISTS #{proc_name};
+        SQL
 
-          proc_sql = File.read(proc_file)
+        proc_sql = File.read(proc_file)
 
-          mysql_connector.query(proc_sql)
-        end
+        client.query(proc_sql)
+      end
+
+      protected
+
+      def generate_partition_sql
+        (1..partitions).each_with_index.map { |_, i| "PARTITION p#{i} VALUES IN (#{i})" }.join(",\n\t")
       end
 
       private
 
-      def mysql_connector
-        @mysql_connector ||= MysqlFramework::Connector.new
+      def partitions
+        @partitions ||= Integer(ENV.fetch('MYSQL_PARTITIONS', '500'))
       end
     end
   end

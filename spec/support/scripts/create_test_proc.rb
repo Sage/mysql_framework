@@ -10,16 +10,22 @@ module MysqlFramework
 
         PROC_FILE = 'spec/support/procedure.sql'
 
-        def apply
-          update_procedure('test_procedure', PROC_FILE)
+        def apply(client)
+          update_procedure(client, 'test_procedure', PROC_FILE)
         end
 
-        def rollback
+        def rollback(_client)
           raise 'Rollback not supported in test.'
         end
 
         def tags
-          [MysqlFramework::Support::Tables::TestTable::NAME, 'TestProc']
+          [table_name, 'TestProc']
+        end
+
+        private
+
+        def table_name
+          MysqlFramework::Support::Tables::TestTable::NAME
         end
       end
     end

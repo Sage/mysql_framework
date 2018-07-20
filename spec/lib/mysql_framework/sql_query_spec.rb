@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
-
 describe MysqlFramework::SqlQuery do
   let(:gems) { MysqlFramework::SqlTable.new('gems') }
   let(:versions) { MysqlFramework::SqlTable.new('versions') }
