@@ -77,12 +77,14 @@ module MysqlFramework
 
     # This method is called to execute a query which will return multiple result sets in an array
     def query_multiple_results(query_string, provided_client = nil)
-      with_client(provided_client) do |client|
+      results = with_client(provided_client) do |client|
         result = []
-        result << client.query(query_string).to_a
-        result << client.store_result&.to_a while client.next_result
+        result << client.query(query_string)
+        result << client.store_result while client.next_result
         result.compact
       end
+
+      results.map(&:to_a)
     end
 
     # This method is called to use a client within a transaction
