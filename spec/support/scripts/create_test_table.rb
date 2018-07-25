@@ -8,9 +8,9 @@ module MysqlFramework
           @identifier = 201801011030 # 10:30 01/01/2018
         end
 
-        def apply
-          mysql_connector.query(<<~SQL)
-            CREATE TABLE IF NOT EXISTS `#{database_name}`.`test` (
+        def apply(client)
+          client.query(<<~SQL)
+            CREATE TABLE IF NOT EXISTS `#{table_name}` (
               `id` CHAR(36) NOT NULL,
               `name` VARCHAR(255) NULL,
               `action` VARCHAR(255) NULL,
@@ -21,12 +21,18 @@ module MysqlFramework
             SQL
         end
 
-        def rollback
+        def rollback(_client)
           raise 'Rollback not supported in test.'
         end
 
         def tags
-          [MysqlFramework::Support::Tables::TestTable::NAME]
+          [table_name]
+        end
+
+        private
+
+        def table_name
+          MysqlFramework::Support::Tables::TestTable::NAME
         end
       end
     end

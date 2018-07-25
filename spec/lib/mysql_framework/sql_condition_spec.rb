@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
-
 describe MysqlFramework::SqlCondition do
   subject { described_class.new(column: 'version', comparison: '=', value: '1.0.0') }
 

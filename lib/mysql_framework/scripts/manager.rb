@@ -3,40 +3,48 @@
 module MysqlFramework
   module Scripts
     class Manager
+      def initialize(mysql_connector)
+        @mysql_connector = mysql_connector
+      end
+
       def execute
-        lock_manager.lock(self.class, 2000) do |locked|
+        lock_manager.lock(self.class, migration_ttl) do |locked|
           raise unless locked
 
           initialize_script_history
 
           last_executed_script = retrieve_last_executed_script
 
-          mysql_connector.transaction do
+          mysql_connector.transaction do |client|
             pending_scripts = calculate_pending_scripts(last_executed_script)
-            MysqlFramework.logger.info { "[#{self.class}] - #{pending_scripts.length} pending data store scripts found." }
+            MysqlFramework.logger.info do
+              "[#{self.class}] - #{pending_scripts.length} pending data store scripts found."
+            end
 
-            pending_scripts.each { |script| apply(script) }
+            pending_scripts.each { |script| apply(script, client) }
           end
 
-          MysqlFramework.logger.info { "[#{self.class}] - Migration script execution complete." }
+          MysqlFramework.logger.debug { "[#{self.class}] - Migration script execution complete." }
         end
       end
 
       def apply_by_tag(tags)
-        lock_manager.lock(self.class, 2000) do |locked|
+        lock_manager.lock(self.class, migration_ttl) do |locked|
           raise unless locked
 
           initialize_script_history
 
-          mysql_connector.transaction do
+          mysql_connector.transaction do |client|
             pending_scripts = calculate_pending_scripts(0)
-            MysqlFramework.logger.info { "[#{self.class}] - #{pending_scripts.length} pending data store scripts found." }
+            MysqlFramework.logger.info do
+              "[#{self.class}] - #{pending_scripts.length} pending data store scripts found."
+            end
 
             pending_scripts.reject { |script| (script.tags & tags).empty? }.sort_by(&:identifier)
-              .each { |script| apply(script) }
+              .each { |script| apply(script, client) }
           end
 
-          MysqlFramework.logger.info { "[#{self.class}] - Migration script execution complete." }
+          MysqlFramework.logger.debug { "[#{self.class}] - Migration script execution complete." }
         end
       end
 
@@ -46,10 +54,10 @@ module MysqlFramework
       end
 
       def retrieve_last_executed_script
-        MysqlFramework.logger.info { "[#{self.class}] - Retrieving last executed script from history." }
+        MysqlFramework.logger.debug { "[#{self.class}] - Retrieving last executed script from history." }
 
         result = mysql_connector.query(<<~SQL)
-          SELECT `identifier` FROM #{migration_table_name} ORDER BY `identifier` DESC
+          SELECT `identifier` FROM `#{migration_table_name}` ORDER BY `identifier` DESC
         SQL
 
         if result.each.to_a.length.zero?
@@ -60,10 +68,10 @@ module MysqlFramework
       end
 
       def initialize_script_history
-        MysqlFramework.logger.info { "[#{self.class}] - Initializing script history." }
+        MysqlFramework.logger.debug { "[#{self.class}] - Initializing script history." }
 
         mysql_connector.query(<<~SQL)
-          CREATE TABLE IF NOT EXISTS #{migration_table_name} (
+          CREATE TABLE IF NOT EXISTS `#{migration_table_name}` (
             `identifier` CHAR(15) NOT NULL,
             `timestamp` DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (`identifier`),
@@ -73,10 +81,9 @@ module MysqlFramework
       end
 
       def calculate_pending_scripts(last_executed_script)
-        MysqlFramework.logger.info { "[#{self.class}] - Calculating pending data store scripts." }
+        MysqlFramework.logger.debug { "[#{self.class}] - Calculating pending data store scripts." }
 
-        MysqlFramework::Scripts::Base.descendants.map(&:new)
-          .select { |script| script.identifier > last_executed_script }.sort_by(&:identifier)
+        migrations.map(&:new).select { |script| script.identifier > last_executed_script }.sort_by(&:identifier)
       end
 
       def table_exists?(table_name)
@@ -92,7 +99,7 @@ module MysqlFramework
 
       def drop_table(table_name)
         mysql_connector.query(<<~SQL)
-          DROP TABLE IF EXISTS #{table_name}
+          DROP TABLE IF EXISTS `#{table_name}`
         SQL
       end
 
@@ -106,30 +113,30 @@ module MysqlFramework
 
       private
 
-      def mysql_connector
-        @mysql_connector ||= MysqlFramework::Connector.new
-      end
+      attr_reader :mysql_connector
 
       def lock_manager
         @lock_manager ||= Redlock::Client.new([ENV.fetch('REDIS_URL')])
       end
 
-      def database
-        @database ||= ENV.fetch('MYSQL_DATABASE')
+      def migration_ttl
+        @migration_ttl ||= ENV.fetch('MYSQL_MIGRATION_LOCK_TTL', 2000)
       end
 
       def migration_table_name
-        return @migration_table_name if @migration_table_name
-
-        @migration_table_name = "`#{database}`.`migration_script_history`"
+        @migration_table_name ||= ENV.fetch('MYSQL_MIGRATION_TABLE', 'migration_script_history')
       end
 
-      def apply(script)
+      def migrations
+        @migrations ||= MysqlFramework::Scripts::Base.descendants
+      end
+
+      def apply(script, client)
         MysqlFramework.logger.info { "[#{self.class}] - Applying script: #{script}." }
 
-        script.apply
-        mysql_connector.query(<<~SQL)
-          INSERT INTO #{migration_table_name} (`identifier`, `timestamp`) VALUES ('#{script.identifier}', NOW())
+        script.apply(client)
+        client.query(<<~SQL)
+          INSERT INTO `#{migration_table_name}` (`identifier`, `timestamp`) VALUES ('#{script.identifier}', NOW())
         SQL
       end
     end
