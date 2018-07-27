@@ -13,10 +13,10 @@ module MysqlFramework
 
           initialize_script_history
 
-          last_executed_script = retrieve_last_executed_script
+          executed_scripts = retrieve_executed_scripts
 
           mysql_connector.transaction do |client|
-            pending_scripts = calculate_pending_scripts(last_executed_script)
+            pending_scripts = calculate_pending_scripts(executed_scripts)
             MysqlFramework.logger.info do
               "[#{self.class}] - #{pending_scripts.length} pending data store scripts found."
             end
@@ -35,7 +35,7 @@ module MysqlFramework
           initialize_script_history
 
           mysql_connector.transaction do |client|
-            pending_scripts = calculate_pending_scripts(0)
+            pending_scripts = calculate_pending_scripts
             MysqlFramework.logger.info do
               "[#{self.class}] - #{pending_scripts.length} pending data store scripts found."
             end
@@ -48,23 +48,14 @@ module MysqlFramework
         end
       end
 
-      def drop_all_tables
-        drop_script_history
-        all_tables.each { |table| drop_table(table) }
-      end
-
-      def retrieve_last_executed_script
+      def retrieve_executed_scripts
         MysqlFramework.logger.debug { "[#{self.class}] - Retrieving last executed script from history." }
 
-        result = mysql_connector.query(<<~SQL)
+        results = mysql_connector.query(<<~SQL)
           SELECT `identifier` FROM `#{migration_table_name}` ORDER BY `identifier` DESC
         SQL
 
-        if result.each.to_a.length.zero?
-          0
-        else
-          Integer(result.first[:identifier])
-        end
+        results.to_a.map { |result| result[:identifier]&.to_i }
       end
 
       def initialize_script_history
@@ -80,17 +71,23 @@ module MysqlFramework
         SQL
       end
 
-      def calculate_pending_scripts(last_executed_script)
+      def calculate_pending_scripts(executed_scripts = [])
         MysqlFramework.logger.debug { "[#{self.class}] - Calculating pending data store scripts." }
 
-        migrations.map(&:new).select { |script| script.identifier > last_executed_script }.sort_by(&:identifier)
+        migrations.map(&:new).reject { |script| executed_scripts.include?(script.identifier) }.sort_by(&:identifier)
       end
 
       def table_exists?(table_name)
         result = mysql_connector.query(<<~SQL)
           SHOW TABLES LIKE '#{table_name}'
         SQL
+
         result.count == 1
+      end
+
+      def drop_all_tables
+        drop_script_history
+        all_tables.each { |table| drop_table(table) }
       end
 
       def drop_script_history
