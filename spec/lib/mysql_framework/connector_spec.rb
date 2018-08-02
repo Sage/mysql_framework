@@ -23,7 +23,7 @@ describe MysqlFramework::Connector do
       reconnect: false
     }
   end
-  let(:client) { double(close: true) }
+  let(:client) { double(close: true, closed?: false) }
   let(:gems) { MysqlFramework::SqlTable.new('gems') }
   let(:existing_client) { Mysql2::Client.new(default_options) }
 
@@ -86,6 +86,20 @@ describe MysqlFramework::Connector do
       end
 
       it 'returns a client instance from the pool' do
+        expect(subject.check_out).to eq(client)
+      end
+    end
+
+    context '' do
+      let(:closed_client) { double(close: true, closed?: true) }
+
+      before do
+        subject.connections.clear
+        subject.connections.push(closed_client)
+      end
+
+      it 'instantiates a new connection and returns it' do
+        expect(Mysql2::Client).to receive(:new).with(default_options).and_return(client)
         expect(subject.check_out).to eq(client)
       end
     end

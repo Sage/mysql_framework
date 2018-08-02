@@ -12,7 +12,7 @@ module MysqlFramework
     def setup
       @connection_pool = ::Queue.new
 
-      start_pool_size.times { @connection_pool.push(Mysql2::Client.new(@options)) }
+      start_pool_size.times { @connection_pool.push(new_client) }
 
       @created_connections = start_pool_size
     end
@@ -36,12 +36,17 @@ module MysqlFramework
 
     # This method is called to fetch a client from the connection pool.
     def check_out
-      @connection_pool.pop(true)
+      client = @connection_pool.pop(true)
+
+      # Prevent "mysql server has gone away" errors by detecting dead clients and creating a new one instead.
+      client = new_client if client.closed?
+
+      client
     rescue ThreadError
       if @created_connections < max_pool_size
-        conn = Mysql2::Client.new(@options)
+        client = new_client
         @created_connections += 1
-        return conn
+        return client
       end
 
       MysqlFramework.logger.error { "[#{self.class}] - Database connection pool depleted." }
@@ -114,6 +119,10 @@ module MysqlFramework
         password: ENV.fetch('MYSQL_PASSWORD'),
         reconnect: true
       }
+    end
+
+    def new_client
+      Mysql2::Client.new(@options)
     end
 
     def start_pool_size
