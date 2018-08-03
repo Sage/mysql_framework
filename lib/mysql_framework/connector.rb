@@ -38,8 +38,7 @@ module MysqlFramework
     def check_out
       client = @connection_pool.pop(true)
 
-      # Prevent "mysql server has gone away" errors by detecting dead clients and creating a new one instead.
-      client = new_client if client.closed?
+      client.ping if @options[:reconnect]
 
       client
     rescue ThreadError
@@ -56,6 +55,8 @@ module MysqlFramework
 
     # This method is called to check a client back in to the connection when no longer needed.
     def check_in(client)
+      client = new_client if client.closed?
+
       @connection_pool.push(client)
     end
 

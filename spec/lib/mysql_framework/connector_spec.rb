@@ -23,7 +23,7 @@ describe MysqlFramework::Connector do
       reconnect: false
     }
   end
-  let(:client) { double(close: true, closed?: false) }
+  let(:client) { double(close: true, ping: true, closed?: false) }
   let(:gems) { MysqlFramework::SqlTable.new('gems') }
   let(:existing_client) { Mysql2::Client.new(default_options) }
 
@@ -88,19 +88,36 @@ describe MysqlFramework::Connector do
       it 'returns a client instance from the pool' do
         expect(subject.check_out).to eq(client)
       end
-    end
 
-    context '' do
-      let(:closed_client) { double(close: true, closed?: true) }
+      context 'and :reconnect is set to true' do
+        let(:options) do
+          {
+            host: ENV.fetch('MYSQL_HOST'),
+            port: ENV.fetch('MYSQL_PORT'),
+            database: "#{ENV.fetch('MYSQL_DATABASE')}_2",
+            username: ENV.fetch('MYSQL_USERNAME'),
+            password: ENV.fetch('MYSQL_PASSWORD'),
+            reconnect: true
+          }
+        end
 
-      before do
-        subject.connections.clear
-        subject.connections.push(closed_client)
+        subject { described_class.new(options) }
+
+        it 'pings the server to force a reconnect' do
+          expect(client).to receive(:ping)
+
+          subject.check_out
+        end
       end
 
-      it 'instantiates a new connection and returns it' do
-        expect(Mysql2::Client).to receive(:new).with(default_options).and_return(client)
-        expect(subject.check_out).to eq(client)
+      context 'and :reconnect is set to false' do
+        subject { described_class.new(options) }
+
+        it 'pings the server to force a reconnect' do
+          expect(client).not_to receive(:ping)
+
+          subject.check_out
+        end
       end
     end
 
@@ -138,6 +155,17 @@ describe MysqlFramework::Connector do
       expect(subject.connections).to receive(:push).with(client)
 
       subject.check_in(client)
+    end
+
+    context 'when the connection has been closed by the server' do
+      let(:closed_client) { double(close: true, closed?: true) }
+
+      it 'instantiates a new connection and returns it' do
+        expect(Mysql2::Client).to receive(:new).with(default_options).and_return(client)
+        expect(subject.connections).to receive(:push).with(client)
+
+        subject.check_in(closed_client)
+      end
     end
   end
 
