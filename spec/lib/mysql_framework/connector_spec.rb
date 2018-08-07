@@ -10,7 +10,9 @@ describe MysqlFramework::Connector do
       database: ENV.fetch('MYSQL_DATABASE'),
       username: ENV.fetch('MYSQL_USERNAME'),
       password: ENV.fetch('MYSQL_PASSWORD'),
-      reconnect: true
+      reconnect: true,
+      read_timeout: ENV.fetch('MYSQL_READ_TIMEOUT', 30),
+      write_timeout: ENV.fetch('MYSQL_WRITE_TIMEOUT', 10)
     }
   end
   let(:options) do
@@ -43,7 +45,18 @@ describe MysqlFramework::Connector do
       subject { described_class.new(options) }
 
       it 'allows the default options to be overridden' do
-        expect(subject.instance_variable_get(:@options)).to eq(options)
+        expected = {
+          host: ENV.fetch('MYSQL_HOST'),
+          port: ENV.fetch('MYSQL_PORT'),
+          database: "#{ENV.fetch('MYSQL_DATABASE')}_2",
+          username: ENV.fetch('MYSQL_USERNAME'),
+          password: ENV.fetch('MYSQL_PASSWORD'),
+          reconnect: false,
+          read_timeout: ENV.fetch('MYSQL_READ_TIMEOUT', 30),
+          write_timeout: ENV.fetch('MYSQL_WRITE_TIMEOUT', 10)
+        }
+
+        expect(subject.instance_variable_get(:@options)).to eq(expected)
       end
     end
 
