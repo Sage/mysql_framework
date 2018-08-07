@@ -118,7 +118,9 @@ module MysqlFramework
         database: ENV.fetch('MYSQL_DATABASE'),
         username: ENV.fetch('MYSQL_USERNAME'),
         password: ENV.fetch('MYSQL_PASSWORD'),
-        reconnect: true
+        reconnect: true,
+        read_timeout: Integer(ENV.fetch('MYSQL_READ_TIMEOUT', 30)),
+        write_timeout: Integer(ENV.fetch('MYSQL_WRITE_TIMEOUT', 10))
       }
     end
 

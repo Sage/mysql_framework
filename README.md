@@ -27,6 +27,11 @@ gem 'mysql_framework'
 * `MYSQL_USERNAME` - MySQL username
 * `MYSQL_PASSWORD` - MySQL password
 
+#### MySQL Timeout Variables
+
+* `MYSQL_READ_TIMEOUT` - how long before connections time out when reading information from the DB (default: `30` seconds)
+* `MYSQL_WRITE_TIMEOUT` - how long before connections time out when writing information to the DB (default: `10` seconds)
+
 #### MySQL Connection Pooling Variables
 
 * `MYSQL_START_POOL_SIZE` - how many connections should be created by default (default: `1`)
