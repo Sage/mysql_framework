@@ -108,7 +108,9 @@ module MysqlFramework
     def where(*conditions)
       @sql += ' WHERE' unless @sql.include?('WHERE')
       @sql += " (#{conditions.join(' AND ')}) "
-
+      p "***********************SQL**************************"
+      p @sql
+      p "***********************SQL**************************"
       conditions.each { |condition| @params << condition.value }
 
       self
