@@ -50,5 +50,15 @@ module MysqlFramework
     def as(name)
       "#{self} as `#{name}`"
     end
+
+    # This method is called to create a LIKE condition for this column.
+    def like(value)
+      SqlCondition.new(column: to_s, comparison: 'LIKE', value: value)
+    end
+
+    # This method is called to create a NOT LIKE condition for this column.
+    def not_like(value)
+      SqlCondition.new(column: to_s, comparison: 'NOT LIKE', value: value)
+    end
   end
 end
