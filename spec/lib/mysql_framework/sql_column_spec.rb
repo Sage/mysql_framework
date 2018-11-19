@@ -84,20 +84,4 @@ describe MysqlFramework::SqlColumn do
       expect(condition.to_s).to eq('`gems`.`version` NOT LIKE ?')
     end
   end
-
-  describe '#in' do
-    it 'returns a SqlCondition for the comparison' do
-      condition = subject.in('(value_1, value_2, value_3)')
-      expect(condition).to be_a(MysqlFramework::SqlCondition)
-      expect(condition.to_s).to eq('`gems`.`version` IN ?')
-    end
-  end
-
-  describe '#not_in' do
-    it 'returns a SqlCondition for the comparison' do
-      condition = subject.not_in('(value_1, value_2, value_3)')
-      expect(condition).to be_a(MysqlFramework::SqlCondition)
-      expect(condition.to_s).to eq('`gems`.`version` NOT IN ?')
-    end
-  end
 end

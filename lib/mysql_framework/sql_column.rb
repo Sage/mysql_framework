@@ -60,15 +60,5 @@ module MysqlFramework
     def not_like(value)
       SqlCondition.new(column: to_s, comparison: 'NOT LIKE', value: value)
     end
-
-    # This method is called to create an IN condition for this column.
-    def in(value)
-      SqlCondition.new(column: to_s, comparison: 'IN', value: value)
-    end
-
-    # This method is called to create a NOT IN condition for this column.
-    def not_in(value)
-      SqlCondition.new(column: to_s, comparison: 'NOT IN', value: value)
-    end
   end
 end
