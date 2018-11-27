@@ -68,4 +68,20 @@ describe MysqlFramework::SqlColumn do
       expect(subject.as('v')).to eq('`gems`.`version` as `v`')
     end
   end
+
+  describe '#like' do
+    it 'returns a SqlCondition for the comparison' do
+      condition = subject.like('%foo%')
+      expect(condition).to be_a(MysqlFramework::SqlCondition)
+      expect(condition.to_s).to eq('`gems`.`version` LIKE ?')
+    end
+  end
+
+  describe '#not_like' do
+    it 'returns a SqlCondition for the comparison' do
+      condition = subject.not_like('%foo%')
+      expect(condition).to be_a(MysqlFramework::SqlCondition)
+      expect(condition.to_s).to eq('`gems`.`version` NOT LIKE ?')
+    end
+  end
 end
