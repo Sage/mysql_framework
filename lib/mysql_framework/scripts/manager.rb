@@ -117,7 +117,7 @@ module MysqlFramework
       end
 
       def migration_ttl
-        @migration_ttl ||= ENV.fetch('MYSQL_MIGRATION_LOCK_TTL', 2000)
+        @migration_ttl ||= Integer(ENV.fetch('MYSQL_MIGRATION_LOCK_TTL', 2000))
       end
 
       def migration_table_name
