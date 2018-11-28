@@ -8,9 +8,7 @@ module MysqlFramework
       end
 
       def execute
-        lock_manager.lock(self.class, migration_ttl) do |locked|
-          raise unless locked
-
+        lock_manager.with_lock(key: self.class) do
           initialize_script_history
 
           executed_scripts = retrieve_executed_scripts
@@ -29,9 +27,7 @@ module MysqlFramework
       end
 
       def apply_by_tag(tags)
-        lock_manager.lock(self.class, migration_ttl) do |locked|
-          raise unless locked
-
+        lock_manager.with_lock(key: self.class) do
           initialize_script_history
 
           mysql_connector.transaction do |client|
@@ -113,11 +109,7 @@ module MysqlFramework
       attr_reader :mysql_connector
 
       def lock_manager
-        @lock_manager ||= Redlock::Client.new([ENV.fetch('REDIS_URL')])
-      end
-
-      def migration_ttl
-        @migration_ttl ||= Integer(ENV.fetch('MYSQL_MIGRATION_LOCK_TTL', 2000))
+        @lock_manager ||= MysqlFramework::Scripts::LockManager.new
       end
 
       def migration_table_name
