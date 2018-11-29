@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'mysql2'
-require 'redlock'
 
 require_relative 'mysql_framework/connector'
 require_relative 'mysql_framework/logger'

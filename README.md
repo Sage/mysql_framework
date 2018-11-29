@@ -41,6 +41,8 @@ gem 'mysql_framework'
 
 * `MYSQL_MIGRATION_TABLE` - the name of the table that holds a record of applied migrations (default: `migration_script_history`)
 * `MYSQL_MIGRATION_LOCK_TTL` - how long the tables should be locked for whilst performing migrations (default: `2000` / `2 seconds`)
+* `MYSQL_MIGRATION_LOCK_MAX_ATTEMPTS` - how many times the lock manager should attempt to acquire the lock before failing (default: `300`)
+* `MYSQL_MIGRATION_LOCK_RETRY_DELAY_S` - how long the lock manager should sleep between lock request attempts (default: `1 second`)
 * `REDIS_URL` - The URL for redis - used for managing locks for DB migrations
 
 #### Miscellaneous Variables
