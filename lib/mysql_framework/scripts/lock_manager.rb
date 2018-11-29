@@ -9,20 +9,6 @@ module MysqlFramework
         @pool = Queue.new
       end
 
-      def fetch_client
-        @pool.pop(true)
-      rescue StandardError
-        # By not letting redlock retry we will rely on the retry that happens in this class
-        Redlock::Client.new([redis_url], retry_jitter: retry_jitter, retry_count: 1, retry_delay: 0)
-      end
-
-      def with
-        client = fetch_client
-        yield client
-      ensure
-        @pool.push(client)
-      end
-
       # This method is called to request a lock (Default 5 minutes)
       def request_lock(key:, ttl: default_ttl, max_attempts: default_max_retries, retry_delay: default_retry_delay)
         MysqlFramework.logger.info { "[#{self.class}] - Requesting lock: #{key}." }
@@ -32,10 +18,10 @@ module MysqlFramework
 
         loop do
           # request a lock
-          lock = with { |client| client.lock(key, ttl) }
+          lock = with_client { |client| client.lock(key, ttl) }
 
           # if lock was received break out of the loop
-          break if lock != false && !lock.nil?
+          break if lock
 
           # lock was not received so increment request count
           count += 1
@@ -60,9 +46,10 @@ module MysqlFramework
 
         MysqlFramework.logger.info { "[#{self.class}] - Releasing lock: #{key}." }
 
-        with { |client| client.unlock(lock) }
+        with_client { |client| client.unlock(lock) }
       end
 
+      # This method is called to request and release a lock around yielding to a user supplied block
       def with_lock(key:, ttl: default_ttl, max_attempts: default_max_retries, retry_delay: default_retry_delay)
         raise 'Block must be specified.' unless block_given?
 
@@ -74,10 +61,26 @@ module MysqlFramework
         end
       end
 
+      # This method is called to retrieve a Redlock client from the pool
+      def fetch_client
+        @pool.pop(true)
+      rescue StandardError
+        # By not letting redlock retry we will rely on the retry that happens in this class
+        Redlock::Client.new([redis_url], retry_jitter: retry_jitter, retry_count: 1, retry_delay: 0)
+      end
+
+      # This method is called to retrieve a Redlock client from the pool and yield it to a block
+      def with_client
+        client = fetch_client
+        yield client
+      ensure
+        @pool.push(client)
+      end
+
       private
 
       def redis_url
-        ENV['REDIS_URL']
+        ENV.fetch('REDIS_URL')
       end
 
       def default_ttl
