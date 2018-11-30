@@ -10,6 +10,8 @@ module MysqlFramework
 
     # This method is called to setup a pool of MySQL connections.
     def setup
+      return unless connection_pool_enabled?
+
       @connection_pool = ::Queue.new
 
       start_pool_size.times { @connection_pool.push(new_client) }
@@ -36,6 +38,8 @@ module MysqlFramework
 
     # This method is called to fetch a client from the connection pool.
     def check_out
+      return new_client unless connection_pool_enabled?
+
       client = @connection_pool.pop(true)
 
       client.ping if @options[:reconnect]
@@ -55,6 +59,8 @@ module MysqlFramework
 
     # This method is called to check a client back in to the connection when no longer needed.
     def check_in(client)
+      return client.close unless connection_pool_enabled?
+
       client = new_client if client.closed?
 
       @connection_pool.push(client)
@@ -126,6 +132,10 @@ module MysqlFramework
 
     def new_client
       Mysql2::Client.new(@options)
+    end
+
+    def connection_pool_enabled?
+      @connection_pool_enabled ||= ENV.fetch('MYSQL_CONNECTION_POOL_ENABLED', 'true').casecmp?('true')
     end
 
     def start_pool_size
