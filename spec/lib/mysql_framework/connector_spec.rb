@@ -28,10 +28,24 @@ describe MysqlFramework::Connector do
   let(:client) { double(close: true, ping: true, closed?: false) }
   let(:gems) { MysqlFramework::SqlTable.new('gems') }
   let(:existing_client) { Mysql2::Client.new(default_options) }
+  let(:connection_pooling_enabled) { 'true' }
 
   subject { described_class.new }
 
-  before(:each) { subject.setup }
+  before(:each) do
+    original_fetch = ENV.method(:fetch)
+
+    allow(ENV).to receive(:fetch) do |var, default|
+      if var == 'MYSQL_CONNECTION_POOL_ENABLED'
+        connection_pooling_enabled
+      else
+        original_fetch.call(var, default)
+      end
+    end
+
+    subject.setup
+  end
+
   after(:each) { subject.dispose }
 
   describe '#initialize' do
@@ -69,10 +83,22 @@ describe MysqlFramework::Connector do
   end
 
   describe '#setup' do
-    it 'creates a connection pool with the specified number of conections' do
-      subject.setup
+    context 'when connection pooling is enabled' do
+      it 'creates a connection pool with the specified number of conections' do
+        subject.setup
 
-      expect(subject.connections.length).to eq(start_pool_size)
+        expect(subject.connections.length).to eq(start_pool_size)
+      end
+    end
+
+    context 'when connection pooling is disabled' do
+      let(:connection_pooling_enabled) { 'false' }
+
+      it "doesn't create a connection pool" do
+        subject.setup
+
+        expect(subject.connections).to be_nil
+      end
     end
   end
 
@@ -92,42 +118,55 @@ describe MysqlFramework::Connector do
   end
 
   describe '#check_out' do
-    context 'when there are available connections' do
-      before do
-        subject.connections.clear
-        subject.connections.push(client)
-      end
-
-      it 'returns a client instance from the pool' do
-        expect(subject.check_out).to eq(client)
-      end
-
-      context 'and :reconnect is set to true' do
-        let(:options) do
-          {
-            host: ENV.fetch('MYSQL_HOST'),
-            port: ENV.fetch('MYSQL_PORT'),
-            database: "#{ENV.fetch('MYSQL_DATABASE')}_2",
-            username: ENV.fetch('MYSQL_USERNAME'),
-            password: ENV.fetch('MYSQL_PASSWORD'),
-            reconnect: true
-          }
+    context 'when connection pooling is enabled' do
+      context 'when there are available connections' do
+        before do
+          subject.connections.clear
+          subject.connections.push(client)
         end
 
-        subject { described_class.new(options) }
+        it 'returns a client instance from the pool' do
+          expect(subject.check_out).to eq(client)
+        end
 
-        it 'pings the server to force a reconnect' do
-          expect(client).to receive(:ping)
+        context 'and :reconnect is set to true' do
+          let(:options) do
+            {
+              host: ENV.fetch('MYSQL_HOST'),
+              port: ENV.fetch('MYSQL_PORT'),
+              database: "#{ENV.fetch('MYSQL_DATABASE')}_2",
+              username: ENV.fetch('MYSQL_USERNAME'),
+              password: ENV.fetch('MYSQL_PASSWORD'),
+              reconnect: true
+            }
+          end
 
-          subject.check_out
+          subject { described_class.new(options) }
+
+          it 'pings the server to force a reconnect' do
+            expect(client).to receive(:ping)
+
+            subject.check_out
+          end
+        end
+
+        context 'and :reconnect is set to false' do
+          subject { described_class.new(options) }
+
+          it 'pings the server to force a reconnect' do
+            expect(client).not_to receive(:ping)
+
+            subject.check_out
+          end
         end
       end
 
-      context 'and :reconnect is set to false' do
-        subject { described_class.new(options) }
+      context 'when connection pooling is disabled' do
+        let(:connection_pooling_enabled) { 'false' }
 
-        it 'pings the server to force a reconnect' do
-          expect(client).not_to receive(:ping)
+        it 'instantiates and returns a new connection directly' do
+          expect(subject.connections).not_to receive(:pop)
+          expect(Mysql2::Client).to receive(:new)
 
           subject.check_out
         end
@@ -164,20 +203,33 @@ describe MysqlFramework::Connector do
   end
 
   describe '#check_in' do
-    it 'returns the provided client to the connection pool' do
-      expect(subject.connections).to receive(:push).with(client)
-
-      subject.check_in(client)
-    end
-
-    context 'when the connection has been closed by the server' do
-      let(:closed_client) { double(close: true, closed?: true) }
-
-      it 'instantiates a new connection and returns it' do
-        expect(Mysql2::Client).to receive(:new).with(default_options).and_return(client)
+    context 'when connection pooling is enabled' do
+      it 'returns the provided client to the connection pool' do
         expect(subject.connections).to receive(:push).with(client)
 
-        subject.check_in(closed_client)
+        subject.check_in(client)
+      end
+
+      context 'when the connection has been closed by the server' do
+        let(:closed_client) { double(close: true, closed?: true) }
+
+        it 'instantiates a new connection and returns it' do
+          expect(Mysql2::Client).to receive(:new).with(default_options).and_return(client)
+          expect(subject.connections).to receive(:push).with(client)
+
+          subject.check_in(closed_client)
+        end
+      end
+    end
+
+    context 'when connection pooling is disabled' do
+      let(:connection_pooling_enabled) { 'false' }
+
+      it 'closes the connection and does not add it to the connection pool' do
+        expect(client).to receive(:close)
+        expect(subject.connections).not_to receive(:push)
+
+        subject.check_in(client)
       end
     end
   end
