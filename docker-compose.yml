@@ -1,0 +1,26 @@
+version: '3.6'
+services:
+  mysql:
+    image: mysql/mysql-server:5.7
+    environment:
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_ROOT_HOST: "%"
+    ports:
+      - "3306:3306"
+
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+
+  app:
+    image: ruby:2.5
+    command: sleep 1d
+    working_dir: /usr/src/app
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PASSWORD: admin
+      MYSQL_USER: root
+      REDIS_URL: redis://redis
+    volumes:
+      - ".:/usr/src/app"
