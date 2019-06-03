@@ -339,6 +339,37 @@ MysqlFramework.logger = Logger.new('development.log')
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/sage/mysql_framework. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [Contributor Covenant](http://contributor-covenant.org) code of conduct.
 
+## Testing
+
+To run the tests locally, we use Docker to provide everything required.
+
+### Setup Images:
+
+> This builds the Ruby docker image.
+
+```bash
+cd script
+./setup.sh
+```
+
+### Run Tests:
+
+> This executes the test suite.
+
+```bash
+cd script
+./test.sh
+```
+
+### Cleanup
+
+> This is used to clean down docker image created in the setup script.
+
+```bash
+cd script
+./cleanup.sh
+```
+
 ## License
 
 This gem is available as open source under the terms of the [MIT licence](LICENSE).
