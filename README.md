@@ -335,6 +335,28 @@ As a default, `MysqlFramework` will log to `STDOUT`. You can provide your own lo
 MysqlFramework.logger = Logger.new('development.log')
 ```
 
+## Testing (with Docker)
+A compose file is provided for running specs.
+
+### Setup
+```
+docker-compose up -d
+docker-compose exec app bash
+# Once the shell opens in the container
+bundle
+```
+
+### Running specs
+```
+bundle exec rspec
+```
+Exit out of the shell when finished.
+
+### Cleanup
+```
+docker-compose down
+```
+
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/sage/mysql_framework. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [Contributor Covenant](http://contributor-covenant.org) code of conduct.
