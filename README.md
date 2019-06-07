@@ -339,35 +339,26 @@ MysqlFramework.logger = Logger.new('development.log')
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/sage/mysql_framework. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [Contributor Covenant](http://contributor-covenant.org) code of conduct.
 
-## Testing
+## Testing (with Docker)
+A compose file is provided for running specs.
 
-To run the tests locally, we use Docker to provide everything required.
-
-### Setup Images:
-
-> This builds the Ruby docker image.
-
-```bash
-cd script
-./setup.sh
+### Setup
+```
+docker-compose up -d
+docker-compose exec test-runner bash
+# Once the shell opens in the container
+bundle
 ```
 
-### Run Tests:
-
-> This executes the test suite.
-
-```bash
-cd script
-./test.sh
+### Running specs
 ```
+bundle exec rspec
+```
+Exit out of the shell when finished.
 
 ### Cleanup
-
-> This is used to clean down docker image created in the setup script.
-
-```bash
-cd script
-./cleanup.sh
+```
+docker-compose down
 ```
 
 ## License
