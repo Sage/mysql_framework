@@ -62,4 +62,28 @@ describe MysqlFramework::Scripts::Base do
       subject.update_procedure(client, 'test_procedure', proc_file_path)
     end
   end
+
+  describe '#column_exists?' do
+    it 'returns true when column exists' do
+      expect(client).to receive(:query).and_return(['result'])
+      expect(subject.column_exists?(client,'foo','bar')).to eq(true)
+    end
+
+    it 'returns false when column does not exist' do
+      expect(client).to receive(:query).and_return([])
+      expect(subject.column_exists?(client,'foo','bar')).to eq(false)
+    end
+  end
+
+  describe '#index_exists?' do
+    it 'returns true when index exists' do
+      expect(client).to receive(:query).and_return(['result'])
+      expect(subject.index_exists?(client,'foo','bar')).to eq(true)
+    end
+
+    it 'returns false when index does not exist' do
+      expect(client).to receive(:query).and_return([])
+      expect(subject.index_exists?(client,'foo','bar')).to eq(false)
+    end
+  end
 end

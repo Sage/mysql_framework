@@ -1,0 +1,33 @@
+version: '2.1'
+
+services:
+  test-runner:
+    image: ruby:2.5
+    working_dir: /usr/src/app
+    container_name: test-runner
+    command: sh -c "while true; do echo 'Container is running..'; sleep 5; done"
+    environment:
+      - MYSQL_HOST=test-mysql
+      - MYSQL_PORT=3306
+      - MYSQL_DATABASE=test_database
+      - MYSQL_USERNAME=root
+      - MYSQL_PASSWORD=admin
+      - REDIS_URL=redis://test-redis:6379
+    volumes:
+      - ".:/usr/src/app"
+    depends_on:
+      - test-mysql
+      - test-redis
+
+  test-mysql:
+    container_name: test-mysql
+    image: mysql:5.7
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: admin
+    ports:
+      - 3306:3306
+
+  test-redis:
+    container_name: test-redis
+    image: redis
