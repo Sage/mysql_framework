@@ -125,6 +125,20 @@ describe MysqlFramework::SqlQuery do
     end
   end
 
+  describe '#bulk_values' do
+    it 'sets the sql for the values statement' do
+      bulk_values = [
+        ['mysql_framework', 'sage', '2016-06-28 10:00:00'],
+        ['mysql_framework', 'sage', '2016-06-28 10:00:00']
+      ]
+
+      subject.bulk_values(bulk_values)
+
+      expect(subject.sql).to eq('VALUES(?, ?, ?),(?, ?, ?)')
+      expect(subject.params).to eq(bulk_values.flatten)
+    end
+  end
+
   describe '#set' do
     it 'sets the sql for the set statement' do
       subject.set(name: 'mysql_framework', author: 'sage', created_at: '2016-06-28 10:00:00')

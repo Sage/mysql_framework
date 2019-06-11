@@ -62,6 +62,20 @@ module MysqlFramework
       self
     end
 
+    # This method is called to specify the values to bulk insert.
+    def bulk_values(bulk_values)
+      @sql += ' VALUES'
+
+      bulk_values.each do |values|
+        @sql += "(#{values.map { '?' }.join(', ')}),"
+        @params += values
+      end
+
+      @sql = @sql.chomp(',')
+
+      self
+    end
+
     # This method is called to specify the columns to update.
     def set(values)
       @sql += ' SET '
