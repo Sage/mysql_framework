@@ -76,6 +76,19 @@ module MysqlFramework
       self
     end
 
+    # This method is called to specify the values to bulk insert.
+    def bulk_upsert(columns)
+      @sql += 'ON DUPLICATE KEY UPDATE '
+
+      columns.each do |column|
+        @sql += "#{column} = values(#{column}), "
+      end
+
+      @sql = @sql.chomp(', ')
+
+      self
+    end
+
     # This method is called to specify the columns to update.
     def set(values)
       @sql += ' SET '
