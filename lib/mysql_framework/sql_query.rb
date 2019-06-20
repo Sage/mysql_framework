@@ -81,7 +81,7 @@ module MysqlFramework
       @sql += 'ON DUPLICATE KEY UPDATE '
 
       columns.each do |column|
-        @sql += "#{column} = values(#{column}), "
+        @sql += "#{column} = VALUES(#{column}), "
       end
 
       @sql = @sql.chomp(', ')

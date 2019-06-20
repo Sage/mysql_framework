@@ -145,7 +145,7 @@ describe MysqlFramework::SqlQuery do
 
       subject.bulk_upsert(columns)
 
-      expect(subject.sql).to eq('ON DUPLICATE KEY UPDATE column_1 = values(column_1), column_2 = values(column_2)')
+      expect(subject.sql).to eq('ON DUPLICATE KEY UPDATE column_1 = VALUES(column_1), column_2 = VALUES(column_2)')
     end
   end
 
