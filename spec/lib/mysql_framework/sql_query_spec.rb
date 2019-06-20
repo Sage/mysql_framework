@@ -139,6 +139,16 @@ describe MysqlFramework::SqlQuery do
     end
   end
 
+  describe '#bulk_upsert' do
+    it 'sets the sql for the upsert statement' do
+      columns = %w(column_1 column_2)
+
+      subject.bulk_upsert(columns)
+
+      expect(subject.sql).to eq('ON DUPLICATE KEY UPDATE column_1 = VALUES(column_1), column_2 = VALUES(column_2)')
+    end
+  end
+
   describe '#set' do
     it 'sets the sql for the set statement' do
       subject.set(name: 'mysql_framework', author: 'sage', created_at: '2016-06-28 10:00:00')

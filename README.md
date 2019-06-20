@@ -317,6 +317,17 @@ update = MysqlFramework::SqlQuery.new.update(gems)
 delete = MysqlFramework::SqlQuery.new.delete
   .from(gems)
   .where(gems[:id].eq(guid))
+
+# Bulk Values Query
+bulk_insert = MysqlFramework::SqlQuery.new.insert(gems)
+  .into(gems[:id],gems[:name],gems[:author],gems[:created_at],gems[:updated_at])
+  .bulk_values([[guid,'mysql_framework','sage',Time.now,Time.now], [guid,'mysql_framework','sage',Time.now,Time.now]])
+
+# Bulk Upsert Query
+bulk_upsert = MysqlFramework::SqlQuery.new.insert(gems)
+  .into(gems[:id],gems[:name],gems[:author],gems[:created_at],gems[:updated_at])
+  .bulk_values([[guid,'mysql_framework','sage',Time.now,Time.now], [guid,'mysql_framework','sage',Time.now,Time.now]])
+  .bulk_upsert(gems[:id],gems[:name],gems[:author],gems[:created_at],gems[:updated_at])
 ```
 
 ### MysqlFramework::SqlTable
