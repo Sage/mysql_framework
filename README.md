@@ -324,7 +324,7 @@ bulk_insert = MysqlFramework::SqlQuery.new.insert(gems)
   .bulk_values([[guid,'mysql_framework','sage',Time.now,Time.now], [guid,'mysql_framework','sage',Time.now,Time.now]])
 
 # Bulk Upsert Query
-bulk_insert = MysqlFramework::SqlQuery.new.insert(gems)
+bulk_upsert = MysqlFramework::SqlQuery.new.insert(gems)
   .into(gems[:id],gems[:name],gems[:author],gems[:created_at],gems[:updated_at])
   .bulk_values([[guid,'mysql_framework','sage',Time.now,Time.now], [guid,'mysql_framework','sage',Time.now,Time.now]])
   .bulk_upsert(['column_1', 'column_2', 'column_3', 'column_4', 'column_5'])
