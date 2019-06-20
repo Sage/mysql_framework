@@ -76,7 +76,7 @@ module MysqlFramework
       self
     end
 
-    # This method is called to specify the values to bulk insert.
+    # This method is called to specify the columns to bulk upsert.
     def bulk_upsert(columns)
       @sql += 'ON DUPLICATE KEY UPDATE '
 
