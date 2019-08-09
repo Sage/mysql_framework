@@ -36,7 +36,7 @@ module MysqlFramework
 
       def column_exists?(client, table_name, column_name)
         result = client.query(<<~SQL)
-          SHOW COLUMNS FROM "#{table_name}" WHERE Field="#{column_name}";
+          SHOW COLUMNS FROM #{table_name} WHERE Field="#{column_name}";
         SQL
 
         result.count == 1
@@ -44,7 +44,7 @@ module MysqlFramework
 
       def index_exists?(client, table_name, index_name)
         result = client.query(<<~SQL)
-          SHOW INDEX FROM "#{table_name}" WHERE Key_name="#{index_name}" LIMIT 1;
+          SHOW INDEX FROM #{table_name} WHERE Key_name="#{index_name}" LIMIT 1;
         SQL
 
         result.count == 1
