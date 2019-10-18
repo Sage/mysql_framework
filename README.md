@@ -91,11 +91,13 @@ end
 
 #### #initialize
 
-The initialize method should set the `@identifier` value, which should be a timestamp
+The initialize method should set the `@identifier` value, which should be a timestamp:
 
 ```ruby
 @identifier = 201806021520 # 15:20 02/06/2018
 ```
+
+Make sure `@identifier` is an integer too, otherwise `MysqlFramework::Scripts::Manager` may struggle to determine which are your pending migrations.
 
 #### #apply
 
@@ -111,6 +113,10 @@ available as `client` to use.
 
 Tags are used for when we want to specify which migrations to run based on a tag. This is useful
 for tests where you don't need to run all migrations to assert something is working or not.
+
+#### Running migrations
+
+Use the `MysqlFramework::Scripts::Manager#execute` method to run all pending migrations.
 
 ### MysqlFramework::Scripts::Table
 
