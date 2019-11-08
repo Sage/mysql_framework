@@ -9,11 +9,12 @@ module MysqlFramework
     def initialize
       @sql = ''
       @params = []
+      @lock = nil
     end
 
     # This method is called to access the sql string for this query.
     def sql
-      @sql.strip
+      (@sql + @lock.to_s).strip
     end
 
     # This method is called to start a select query
@@ -216,6 +217,13 @@ module MysqlFramework
 
       conditions.each { |condition| @params << condition.value }
 
+      self
+    end
+
+    # This method allows you to add a pessimistic lock to the record.
+    # The default lock is `FOR UPDATE`
+    def lock(condition = nil)
+      @lock = ' ' + (condition || 'FOR UPDATE')
       self
     end
   end

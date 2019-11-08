@@ -330,4 +330,11 @@ describe MysqlFramework::SqlQuery do
       end
     end
   end
+
+  describe '#lock' do
+    it 'appends `FOR_UPDATE` to the query' do
+      subject.lock
+      expect(subject.sql).to end_with('FOR UPDATE')
+    end
+  end
 end
