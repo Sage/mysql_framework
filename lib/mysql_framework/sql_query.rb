@@ -137,7 +137,13 @@ module MysqlFramework
       @sql += ' WHERE' unless @sql.include?('WHERE')
       @sql += " (#{conditions.join(' AND ')}) "
 
-      conditions.each { |condition| @params << condition.value }
+      conditions.each do |condition|
+        if condition.value.is_a?(Enumerable)
+          @params.concat(condition.value)
+        else
+          @params << condition.value
+        end
+      end
 
       self
     end

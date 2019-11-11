@@ -63,6 +63,14 @@ describe MysqlFramework::SqlColumn do
     end
   end
 
+  describe '#in' do
+    it 'returns a SqlCondition for the comparison' do
+      condition = subject.in('a', 'b', 'c')
+      expect(condition).to be_a(MysqlFramework::InCondition)
+      expect(condition.to_s).to eq('`gems`.`version` IN (?, ?, ?)')
+    end
+  end
+
   describe '#as' do
     it 'returns the column specified as another name' do
       expect(subject.as('v')).to eq('`gems`.`version` as `v`')

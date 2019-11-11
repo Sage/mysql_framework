@@ -46,6 +46,10 @@ module MysqlFramework
       SqlCondition.new(column: to_s, comparison: '<=', value: value)
     end
 
+    def in(*values)
+      InCondition.new(column: to_s, comparison: 'IN', value: values)
+    end
+
     # This method is called to generate an alias statement for this column.
     def as(name)
       "#{self} as `#{name}`"
