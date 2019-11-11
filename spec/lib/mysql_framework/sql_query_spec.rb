@@ -333,8 +333,54 @@ describe MysqlFramework::SqlQuery do
 
   describe '#lock' do
     it 'appends `FOR_UPDATE` to the query' do
-      subject.lock
+      subject.select('*').from(gems).lock
       expect(subject.sql).to end_with('FOR UPDATE')
+    end
+  end
+
+  describe '#duplicate_update' do
+    let(:query) do
+      subject.insert(gems)
+        .into(
+          gems[:id],
+          gems[:name],
+          gems[:author]
+        )
+        .values(
+          1,
+          'mysql_framework',
+          'Bob Hope'
+        )
+    end
+
+    context 'when no custom values are specified' do
+      it 'updates with the value from the INSERT clause' do
+        query.duplicate_update(
+          update_columns: [
+            gems[:name],
+            gems[:author]
+          ]
+        )
+
+        expect(query.sql)
+          .to end_with 'ON DUPLICATE KEY UPDATE `gems`.`name` = VALUES (`gems`.`name`),`gems`.`author` = VALUES (`gems`.`author`)'
+      end
+    end
+
+    context 'when a custom value is specified' do
+      it 'updates the value based on the custom value' do
+        query.duplicate_update(
+          update_columns: [
+            gems[:name],
+            gems[:author],
+          ],
+          update_values:
+            { gems[:name].to_sym => '"mysql_alternative"', gems[:author].to_sym => '"Michael Caine"' }
+        )
+
+        expect(query.sql)
+          .to end_with 'ON DUPLICATE KEY UPDATE `gems`.`name` = "mysql_alternative",`gems`.`author` = "Michael Caine"'
+      end
     end
   end
 end

@@ -14,7 +14,7 @@ module MysqlFramework
 
     # This method is called to access the sql string for this query.
     def sql
-      (@sql + @lock.to_s).strip
+      (@sql + @lock.to_s + @dup_query.to_s).strip
     end
 
     # This method is called to start a select query
@@ -222,8 +222,48 @@ module MysqlFramework
 
     # This method allows you to add a pessimistic lock to the record.
     # The default lock is `FOR UPDATE`
+    # If you require any custom lock, e.g. FOR SHARE, just pass that in as the condition
+    # query.lock('FOR SHARE')
     def lock(condition = nil)
+      raise 'This must be a SELECT query' unless @sql.start_with?('SELECT')
+
       @lock = ' ' + (condition || 'FOR UPDATE')
+      self
+    end
+
+    # For insert queries if you need to handle that a primary key already exists and automatically do an update instead.
+    # If you do not pass in a hash specifying a column name and custom value for it, we will assume that each column
+    # specified in the update_columns will be updated by the value used to INSERT.
+    # The #update_values parameter is useful when the update requires a
+    # different value on UPDATE than on INSERT on some or all the columns.
+    # e.g.
+    # query.insert('users')
+    # .into('id', first_name', 'login_count')
+    # .values(1, 'Bob', 1)
+    # .duplicate_update(
+    #   update_columns: [
+    #     first_name,
+    #     login_count
+    #   ],
+    #   update_values: {login_count: 'login_count + 5'})
+    # This would first create a record like => `1, 'Bob', 1`.
+    # The second time it would update it to => `1, 'Bob', 6`
+    def duplicate_update(update_columns:, update_values: {})
+      raise 'This must be an INSERT query' unless @sql.start_with?('INSERT')
+
+      duplicates = []
+      update_columns.each do |column|
+        if update_values[column.to_sym]
+          # custom value if doing an update
+          updated_value = "#{column} = #{update_values[column.to_sym]}"
+        else
+          # value comes from what the INSERT intended
+          updated_value = "#{column} = VALUES (#{column})"
+        end
+        duplicates << updated_value
+      end
+      @dup_query = " ON DUPLICATE KEY UPDATE #{duplicates.join(',')}"
+
       self
     end
   end
