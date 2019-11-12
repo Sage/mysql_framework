@@ -234,7 +234,7 @@ module MysqlFramework
     # query.insert('users')
     # .into('id', first_name', 'login_count')
     # .values(1, 'Bob', 1)
-    # .duplicate_update(
+    # .on_duplicate(
     #   {
     #     first_name: nil,
     #     login_count: 'login_count + 5'
