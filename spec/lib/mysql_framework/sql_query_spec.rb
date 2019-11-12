@@ -213,6 +213,13 @@ describe MysqlFramework::SqlQuery do
         expect(subject.sql).to eq('WHERE (`gems`.`author` = ? AND `gems`.`created_at` > ?) AND (`gems`.`name` = ?)')
       end
     end
+
+    context 'when the condition includes an array of parameters' do
+      it 'concats the parameter collections' do
+        subject.and.where(gems[:name].in('a','b'))
+        expect(subject.sql).to eq('WHERE (`gems`.`author` = ? AND `gems`.`created_at` > ?) AND (`gems`.`name` IN (?, ?))')
+      end
+    end
   end
 
   describe '#and' do
