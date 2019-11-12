@@ -77,19 +77,6 @@ module MysqlFramework
       self
     end
 
-    # This method is called to specify the columns to bulk upsert.
-    def bulk_upsert(columns)
-      @sql += 'ON DUPLICATE KEY UPDATE '
-
-      columns.each do |column|
-        @sql += "#{column} = VALUES(#{column}), "
-      end
-
-      @sql = @sql.chomp(', ')
-
-      self
-    end
-
     # This method is called to specify the columns to update.
     def set(values)
       @sql += ' SET '
@@ -238,37 +225,38 @@ module MysqlFramework
     end
 
     # For insert queries if you need to handle that a primary key already exists and automatically do an update instead.
-    # If you do not pass in a hash specifying a column name and custom value for it, we will assume that each column
-    # specified in the update_columns will be updated by the value used to INSERT.
-    # The #update_values parameter is useful when the update requires a
-    # different value on UPDATE than on INSERT on some or all the columns.
+    # If you do not pass in a hash specifying a column name and custom value for it.
+    # @param update_values [Hash] key is a column name.  A nil value will make the query update
+    # the column with the value specified in the insert.  Otherwise any value will be interpreted
+    # literally via mysql.
+    # @return SqlQuery
     # e.g.
     # query.insert('users')
     # .into('id', first_name', 'login_count')
     # .values(1, 'Bob', 1)
     # .duplicate_update(
-    #   update_columns: [
-    #     first_name,
-    #     login_count
-    #   ],
-    #   update_values: {login_count: 'login_count + 5'})
+    #   {
+    #     first_name: nil,
+    #     login_count: 'login_count + 5'
+    #   }
+    # )
     # This would first create a record like => `1, 'Bob', 1`.
-    # The second time it would update it to => `1, 'Bob', 6`
-    def duplicate_update(update_columns:, update_values: {})
+    # The second time it would update it with => `'Bob', 6`  (Note the 1 is not used in the update)
+    def on_duplicate(update_values = {})
       raise 'This must be an INSERT query' unless @sql.start_with?('INSERT')
 
       duplicates = []
-      update_columns.each do |column|
-        if update_values[column.to_sym]
-          # custom value if doing an update
-          updated_value = "#{column} = #{update_values[column.to_sym]}"
-        else
+      update_values.each do |column, col_value|
+        if col_value.nil?
           # value comes from what the INSERT intended
           updated_value = "#{column} = VALUES (#{column})"
+        else
+          # custom value specified by col_value
+          updated_value = "#{column} = #{col_value}"
         end
         duplicates << updated_value
       end
-      @dup_query = " ON DUPLICATE KEY UPDATE #{duplicates.join(',')}"
+      @dup_query = " ON DUPLICATE KEY UPDATE #{duplicates.join(', ')}"
 
       self
     end

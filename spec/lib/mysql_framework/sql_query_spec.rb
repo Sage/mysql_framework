@@ -139,16 +139,6 @@ describe MysqlFramework::SqlQuery do
     end
   end
 
-  describe '#bulk_upsert' do
-    it 'sets the sql for the upsert statement' do
-      columns = %w(column_1 column_2)
-
-      subject.bulk_upsert(columns)
-
-      expect(subject.sql).to eq('ON DUPLICATE KEY UPDATE column_1 = VALUES(column_1), column_2 = VALUES(column_2)')
-    end
-  end
-
   describe '#set' do
     it 'sets the sql for the set statement' do
       subject.set(name: 'mysql_framework', author: 'sage', created_at: '2016-06-28 10:00:00')
@@ -338,7 +328,7 @@ describe MysqlFramework::SqlQuery do
     end
   end
 
-  describe '#duplicate_update' do
+  describe '#on_duplicate' do
     let(:query) do
       subject.insert(gems)
         .into(
@@ -355,31 +345,43 @@ describe MysqlFramework::SqlQuery do
 
     context 'when no custom values are specified' do
       it 'updates with the value from the INSERT clause' do
-        query.duplicate_update(
-          update_columns: [
-            gems[:name],
-            gems[:author]
-          ]
+        query.on_duplicate(
+          {
+            gems[:name] => nil,
+            gems[:author] => nil
+          }
         )
 
         expect(query.sql)
-          .to end_with 'ON DUPLICATE KEY UPDATE `gems`.`name` = VALUES (`gems`.`name`),`gems`.`author` = VALUES (`gems`.`author`)'
+          .to end_with 'ON DUPLICATE KEY UPDATE `gems`.`name` = VALUES (`gems`.`name`), `gems`.`author` = VALUES (`gems`.`author`)'
       end
     end
 
     context 'when a custom value is specified' do
       it 'updates the value based on the custom value' do
-        query.duplicate_update(
-          update_columns: [
-            gems[:name],
-            gems[:author],
-          ],
-          update_values:
-            { gems[:name].to_sym => '"mysql_alternative"', gems[:author].to_sym => '"Michael Caine"' }
+        query.on_duplicate(
+          {
+            gems[:name] => '"mysql_alternative"',
+            gems[:author] => '"Michael Caine"'
+          }
         )
 
         expect(query.sql)
-          .to end_with 'ON DUPLICATE KEY UPDATE `gems`.`name` = "mysql_alternative",`gems`.`author` = "Michael Caine"'
+          .to end_with 'ON DUPLICATE KEY UPDATE `gems`.`name` = "mysql_alternative", `gems`.`author` = "Michael Caine"'
+      end
+    end
+
+    context 'when column names are specified instead of SqlColumn objects' do
+      it 'updates the value based on the custom column key names' do
+        query.on_duplicate(
+          {
+            name: '"mysql_alternative"',
+            author: '"Michael Caine"'
+          }
+        )
+
+        expect(query.sql)
+          .to end_with 'ON DUPLICATE KEY UPDATE name = "mysql_alternative", author = "Michael Caine"'
       end
     end
   end
