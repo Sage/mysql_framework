@@ -9,11 +9,12 @@ module MysqlFramework
     def initialize
       @sql = ''
       @params = []
+      @lock = nil
     end
 
     # This method is called to access the sql string for this query.
     def sql
-      @sql.strip
+      (@sql + @lock.to_s + @dup_query.to_s).strip
     end
 
     # This method is called to start a select query
@@ -76,19 +77,6 @@ module MysqlFramework
       self
     end
 
-    # This method is called to specify the columns to bulk upsert.
-    def bulk_upsert(columns)
-      @sql += 'ON DUPLICATE KEY UPDATE '
-
-      columns.each do |column|
-        @sql += "#{column} = VALUES(#{column}), "
-      end
-
-      @sql = @sql.chomp(', ')
-
-      self
-    end
-
     # This method is called to specify the columns to update.
     def set(values)
       @sql += ' SET '
@@ -136,7 +124,13 @@ module MysqlFramework
       @sql += ' WHERE' unless @sql.include?('WHERE')
       @sql += " (#{conditions.join(' AND ')}) "
 
-      conditions.each { |condition| @params << condition.value }
+      conditions.each do |condition|
+        if condition.value.is_a?(Enumerable)
+          @params.concat(condition.value)
+        else
+          @params << condition.value
+        end
+      end
 
       self
     end
@@ -215,6 +209,54 @@ module MysqlFramework
       @sql += " (#{conditions.join(' AND ')}) "
 
       conditions.each { |condition| @params << condition.value }
+
+      self
+    end
+
+    # This method allows you to add a pessimistic lock to the record.
+    # The default lock is `FOR UPDATE`
+    # If you require any custom lock, e.g. FOR SHARE, just pass that in as the condition
+    # query.lock('FOR SHARE')
+    def lock(condition = nil)
+      raise 'This must be a SELECT query' unless @sql.start_with?('SELECT')
+
+      @lock = ' ' + (condition || 'FOR UPDATE')
+      self
+    end
+
+    # For insert queries if you need to handle that a primary key already exists and automatically do an update instead.
+    # If you do not pass in a hash specifying a column name and custom value for it.
+    # @param update_values [Hash] key is a column name.  A nil value will make the query update
+    # the column with the value specified in the insert.  Otherwise any value will be interpreted
+    # literally via mysql.
+    # @return SqlQuery
+    # e.g.
+    # query.insert('users')
+    # .into('id', first_name', 'login_count')
+    # .values(1, 'Bob', 1)
+    # .on_duplicate(
+    #   {
+    #     first_name: nil,
+    #     login_count: 'login_count + 5'
+    #   }
+    # )
+    # This would first create a record like => `1, 'Bob', 1`.
+    # The second time it would update it with => `'Bob', 6`  (Note the 1 is not used in the update)
+    def on_duplicate(update_values = {})
+      raise 'This must be an INSERT query' unless @sql.start_with?('INSERT')
+
+      duplicates = []
+      update_values.each do |column, col_value|
+        if col_value.nil?
+          # value comes from what the INSERT intended
+          updated_value = "#{column} = VALUES (#{column})"
+        else
+          # custom value specified by col_value
+          updated_value = "#{column} = #{col_value}"
+        end
+        duplicates << updated_value
+      end
+      @dup_query = " ON DUPLICATE KEY UPDATE #{duplicates.join(', ')}"
 
       self
     end

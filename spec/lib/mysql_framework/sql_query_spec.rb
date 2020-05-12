@@ -139,16 +139,6 @@ describe MysqlFramework::SqlQuery do
     end
   end
 
-  describe '#bulk_upsert' do
-    it 'sets the sql for the upsert statement' do
-      columns = %w(column_1 column_2)
-
-      subject.bulk_upsert(columns)
-
-      expect(subject.sql).to eq('ON DUPLICATE KEY UPDATE column_1 = VALUES(column_1), column_2 = VALUES(column_2)')
-    end
-  end
-
   describe '#set' do
     it 'sets the sql for the set statement' do
       subject.set(name: 'mysql_framework', author: 'sage', created_at: '2016-06-28 10:00:00')
@@ -221,6 +211,13 @@ describe MysqlFramework::SqlQuery do
         subject.and.where(gems[:name].eq('mysql_framework'))
 
         expect(subject.sql).to eq('WHERE (`gems`.`author` = ? AND `gems`.`created_at` > ?) AND (`gems`.`name` = ?)')
+      end
+    end
+
+    context 'when the condition includes an array of parameters' do
+      it 'concats the parameter collections' do
+        subject.and.where(gems[:name].in('a','b'))
+        expect(subject.sql).to eq('WHERE (`gems`.`author` = ? AND `gems`.`created_at` > ?) AND (`gems`.`name` IN (?, ?))')
       end
     end
   end
@@ -327,6 +324,71 @@ describe MysqlFramework::SqlQuery do
         subject.or.having(gems[:count].gt(20))
 
         expect(subject.sql).to eq('HAVING (`gems`.`count` > ? AND `gems`.`count` < ?) OR (`gems`.`count` > ?)')
+      end
+    end
+  end
+
+  describe '#lock' do
+    it 'appends `FOR_UPDATE` to the query' do
+      subject.select('*').from(gems).lock
+      expect(subject.sql).to end_with('FOR UPDATE')
+    end
+  end
+
+  describe '#on_duplicate' do
+    let(:query) do
+      subject.insert(gems)
+        .into(
+          gems[:id],
+          gems[:name],
+          gems[:author]
+        )
+        .values(
+          1,
+          'mysql_framework',
+          'Bob Hope'
+        )
+    end
+
+    context 'when no custom values are specified' do
+      it 'updates with the value from the INSERT clause' do
+        query.on_duplicate(
+          {
+            gems[:name] => nil,
+            gems[:author] => nil
+          }
+        )
+
+        expect(query.sql)
+          .to end_with 'ON DUPLICATE KEY UPDATE `gems`.`name` = VALUES (`gems`.`name`), `gems`.`author` = VALUES (`gems`.`author`)'
+      end
+    end
+
+    context 'when a custom value is specified' do
+      it 'updates the value based on the custom value' do
+        query.on_duplicate(
+          {
+            gems[:name] => '"mysql_alternative"',
+            gems[:author] => '"Michael Caine"'
+          }
+        )
+
+        expect(query.sql)
+          .to end_with 'ON DUPLICATE KEY UPDATE `gems`.`name` = "mysql_alternative", `gems`.`author` = "Michael Caine"'
+      end
+    end
+
+    context 'when column names are specified instead of SqlColumn objects' do
+      it 'updates the value based on the custom column key names' do
+        query.on_duplicate(
+          {
+            name: '"mysql_alternative"',
+            author: '"Michael Caine"'
+          }
+        )
+
+        expect(query.sql)
+          .to end_with 'ON DUPLICATE KEY UPDATE name = "mysql_alternative", author = "Michael Caine"'
       end
     end
   end

@@ -329,11 +329,11 @@ bulk_insert = MysqlFramework::SqlQuery.new.insert(gems)
   .into(gems[:id],gems[:name],gems[:author],gems[:created_at],gems[:updated_at])
   .bulk_values([[guid,'mysql_framework','sage',Time.now,Time.now], [guid,'mysql_framework','sage',Time.now,Time.now]])
 
-# Bulk Upsert Query
+# Bulk On Duplicate Query
 bulk_upsert = MysqlFramework::SqlQuery.new.insert(gems)
   .into(gems[:id],gems[:name],gems[:author],gems[:created_at],gems[:updated_at])
   .bulk_values([[guid,'mysql_framework','sage',Time.now,Time.now], [guid,'mysql_framework','sage',Time.now,Time.now]])
-  .bulk_upsert(gems[:id],gems[:name],gems[:author],gems[:created_at],gems[:updated_at])
+  .on_duplicate(gems[:id] => nil,gems[:name] => nil,gems[:author] => nil,gems[:created_at] => nil,gems[:updated_at] => nil)
 ```
 
 ### MysqlFramework::SqlTable
