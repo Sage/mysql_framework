@@ -392,4 +392,20 @@ describe MysqlFramework::SqlQuery do
       end
     end
   end
+
+  describe '#open_brackets' do
+    it 'appends the sql for an (' do
+      subject.open_brackets
+
+      expect(subject.sql).to eq('(')
+    end
+  end
+
+  describe '#close_brackets' do
+    it 'appends the sql for an )' do
+      subject.close_brackets
+
+      expect(subject.sql).to eq(')')
+    end
+  end
 end
