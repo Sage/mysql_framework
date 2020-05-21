@@ -260,5 +260,19 @@ module MysqlFramework
 
       self
     end
+
+    # This method is called to add an ` (` keyword to a query to provide additional where clauses.
+    def open_brackets
+      @sql += ' ('
+
+      self
+    end
+
+    # This method is called to add an `) ` keyword to a query to provide alternate where clauses.
+    def close_brackets
+      @sql += ') '
+
+      self
+    end
   end
 end
