@@ -9,6 +9,16 @@ describe MysqlFramework::SqlCondition do
     end
   end
 
+  context 'when comparison is neither IS NULL or IS NOT NULL' do
+    context 'when value is nil' do
+      subject { described_class.new(column: 'version', comparison: '=', value: nil) }
+
+      it 'does raises an ArgumentError' do
+        expect { subject }.to raise_error(ArgumentError, "Comparison of = requires value to be not nil")
+      end
+    end
+  end
+
   context 'when comparison is IS NULL' do
     subject { described_class.new(column: 'version', comparison: 'IS NULL') }
 

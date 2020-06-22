@@ -12,7 +12,11 @@ module MysqlFramework
       @column = column
       @comparison = comparison
 
-      raise ArgumentError, "Cannot set value when comparison is #{comparison}" if nil_comparison? && value != nil
+      if nil_comparison?
+        raise ArgumentError, "Cannot set value when comparison is #{comparison}" if value != nil
+      else
+        raise ArgumentError, "Comparison of #{comparison} requires value to be not nil" if value.nil?
+      end
 
       @value = value
     end
