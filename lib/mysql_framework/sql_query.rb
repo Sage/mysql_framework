@@ -120,11 +120,14 @@ module MysqlFramework
     end
 
     # This method is called to specify a where clause for a query.
+    #
+    # Condition values are added to @params unless the value is nil.
     def where(*conditions)
       @sql += ' WHERE' unless @sql.include?('WHERE')
       @sql += " (#{conditions.join(' AND ')}) "
 
       conditions.each do |condition|
+        next if condition.value.nil?
         if condition.value.is_a?(Enumerable)
           @params.concat(condition.value)
         else
