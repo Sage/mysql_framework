@@ -26,6 +26,8 @@ module MysqlFramework
     end
 
     # This method is called to get the condition as a string for a sql prepared statement
+    #
+    # @return [String]
     def to_s
       return "#{@column} #{@comparison.upcase}" if nil_comparison?
 
