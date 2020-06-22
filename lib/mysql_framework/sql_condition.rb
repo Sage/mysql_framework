@@ -21,7 +21,8 @@ module MysqlFramework
       @column = column
       @comparison = comparison
 
-      @value = value if valid_value?(value)
+      validate(value)
+      @value = value
     end
 
     # This method is called to get the condition as a string for a sql prepared statement
@@ -37,11 +38,9 @@ module MysqlFramework
       NIL_COMPARISONS.include?(@comparison.upcase)
     end
 
-    def valid_value?(value)
+    def validate(value)
       raise ArgumentError, "Cannot set value when comparison is #{@comparison}" if invalid_null_condition?(value)
       raise ArgumentError, "Comparison of #{@comparison} requires value to be not nil" if invalid_nil_value?(value)
-
-      true
     end
 
     def invalid_null_condition?(value)
