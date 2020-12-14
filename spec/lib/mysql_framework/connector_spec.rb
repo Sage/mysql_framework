@@ -276,8 +276,7 @@ describe MysqlFramework::Connector do
     it 'does not raise a commands out of sync error' do
       threads = []
       threads << Thread.new do
-        350.times do |n|
-          p "t1: #{n}"
+        350.times do
           update_query = MysqlFramework::SqlQuery.new.update('gems')
                                                  .set(updated_at: Time.now)
           expect { subject.execute(update_query) }.not_to raise_error
@@ -285,16 +284,14 @@ describe MysqlFramework::Connector do
       end
 
       threads << Thread.new do
-        350.times do |n|
-          p "t2: #{n}"
+        350.times do
           select_query = MysqlFramework::SqlQuery.new.select('*').from('demo')
           expect { subject.execute(select_query) }.not_to raise_error
         end
       end
 
       threads << Thread.new do
-        350.times do |n|
-          p "t3: #{n}"
+        350.times do
           select_query = MysqlFramework::SqlQuery.new.select('*').from('test')
           expect { subject.execute(select_query) }.not_to raise_error
         end
