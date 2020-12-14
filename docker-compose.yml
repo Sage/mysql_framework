@@ -2,7 +2,7 @@ version: '2.1'
 
 services:
   test-runner:
-    image: ruby:2.5
+    image: ruby:2.4
     working_dir: /usr/src/app
     container_name: test-runner
     command: sh -c "while true; do echo 'Container is running..'; sleep 5; done"

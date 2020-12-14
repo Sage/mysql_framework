@@ -81,11 +81,13 @@ module MysqlFramework
     # queries at the same time.
     def execute(query, provided_client = nil)
       with_client(provided_client) do |client|
-        statement = client.prepare(query.sql)
-        result = statement.execute(*query.params)
-        result.to_a if result
-      ensure
-        statement.close if statement
+        begin
+          statement = client.prepare(query.sql)
+          result = statement.execute(*query.params)
+          result.to_a if result
+        ensure
+          statement.close if statement
+        end
       end
     end
 
