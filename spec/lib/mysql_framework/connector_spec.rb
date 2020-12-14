@@ -272,6 +272,36 @@ describe MysqlFramework::Connector do
       expect(results.length).to eq(1)
       expect(results[0][:id]).to eq(guid)
     end
+
+    it 'does not raise a commands out of sync error' do
+      threads = []
+      threads << Thread.new do
+        350.times do |n|
+          p "t1: #{n}"
+          update_query = MysqlFramework::SqlQuery.new.update('gems')
+                                                 .set(updated_at: Time.now)
+          expect { subject.execute(update_query) }.not_to raise_error
+        end
+      end
+
+      threads << Thread.new do
+        350.times do |n|
+          p "t2: #{n}"
+          select_query = MysqlFramework::SqlQuery.new.select('*').from('demo')
+          expect { subject.execute(select_query) }.not_to raise_error
+        end
+      end
+
+      threads << Thread.new do
+        350.times do |n|
+          p "t3: #{n}"
+          select_query = MysqlFramework::SqlQuery.new.select('*').from('test')
+          expect { subject.execute(select_query) }.not_to raise_error
+        end
+      end
+
+      threads.each(&:join)
+    end
   end
 
   describe '#query' do
