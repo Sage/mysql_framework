@@ -75,10 +75,19 @@ module MysqlFramework
     end
 
     # This method is called to execute a prepared statement
+    #
+    # @note Ensure we close each statement, otherwise we can run into
+    # a 'Commands out of sync' error if multiple threads are running different
+    # queries at the same time.
     def execute(query, provided_client = nil)
       with_client(provided_client) do |client|
-        statement = client.prepare(query.sql)
-        statement.execute(*query.params)
+        begin
+          statement = client.prepare(query.sql)
+          result = statement.execute(*query.params)
+          result.to_a if result
+        ensure
+          statement.close if statement
+        end
       end
     end
 
