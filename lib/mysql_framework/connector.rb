@@ -59,10 +59,9 @@ module MysqlFramework
 
     # This method is called to check a client back in to the connection when no longer needed.
     def check_in(client)
-      return client.close unless connection_pool_enabled?
+      return client&.close unless connection_pool_enabled?
 
-      client = new_client if client.closed?
-
+      client = new_client if client.nil? || client.closed?
       @connection_pool.push(client)
     end
 

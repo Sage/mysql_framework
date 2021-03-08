@@ -232,6 +232,24 @@ describe MysqlFramework::Connector do
         subject.check_in(client)
       end
     end
+
+    context 'when client is nil' do
+      let(:client) { nil }
+
+      context 'when connection pooling is enabled' do
+        it 'does not raise an error' do
+          expect { subject.check_in(client) }.not_to raise_error
+        end
+      end
+
+      context 'when connection pooling is disabled' do
+        let(:connection_pooling_enabled) { 'false' }
+
+        it 'does not raise an error' do
+          expect { subject.check_in(client) }.not_to raise_error
+        end
+      end
+    end
   end
 
   describe '#with_client' do
