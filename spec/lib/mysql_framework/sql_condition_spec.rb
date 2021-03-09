@@ -3,6 +3,12 @@
 describe MysqlFramework::SqlCondition do
   subject { described_class.new(column: 'version', comparison: '=', value: '1.0.0') }
 
+  before :each do
+    allow_any_instance_of(MysqlFramework::SqlCondition).to receive(:skip_nil_validation?).and_return(skip_nil_validation)
+  end
+
+  let(:skip_nil_validation) { false }
+
   describe '#to_s' do
     it 'returns the condition as a string for a prepared statement' do
       expect(subject.to_s).to eq('version = ?')
@@ -15,6 +21,14 @@ describe MysqlFramework::SqlCondition do
 
       it 'does raises an ArgumentError' do
         expect { subject }.to raise_error(ArgumentError, "Comparison of = requires value to be not nil")
+      end
+
+      context 'when skip_nil_validation? is true' do
+        let(:skip_nil_validation) { true }
+
+        it 'does not raise an ArgumentError' do
+          expect(subject.value).to be_nil
+        end
       end
     end
   end
@@ -32,6 +46,14 @@ describe MysqlFramework::SqlCondition do
       describe '#new' do
         it 'raises an ArgumentError if value is set' do
           expect { subject }.to raise_error(ArgumentError, 'Cannot set value when comparison is IS NULL')
+        end
+
+        context 'when skip_nil_validation? is true' do
+          let(:skip_nil_validation) { true }
+
+          it 'raises an ArgumentError if value is set' do
+            expect { subject }.to raise_error(ArgumentError, 'Cannot set value when comparison is IS NULL')
+          end
         end
       end
     end
@@ -66,6 +88,14 @@ describe MysqlFramework::SqlCondition do
       describe '#new' do
         it 'raises an ArgumentError if value is set' do
           expect { subject }.to raise_error(ArgumentError, 'Cannot set value when comparison is IS NOT NULL')
+        end
+
+        context 'when skip_nil_validation? is true' do
+          let(:skip_nil_validation) { true }
+
+          it 'raises an ArgumentError if value is set' do
+            expect { subject }.to raise_error(ArgumentError, 'Cannot set value when comparison is IS NOT NULL')
+          end
         end
       end
     end
