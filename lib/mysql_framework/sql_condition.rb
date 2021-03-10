@@ -50,7 +50,12 @@ module MysqlFramework
     end
 
     def invalid_nil_value?(value)
+      return false if skip_nil_validation?
       nil_comparison? == false && value.nil?
+    end
+
+    def skip_nil_validation?
+      ENV.fetch('MYSQL_FRAMEWORK_SKIP_NIL_VALUE_VALIDATION', 'false').downcase == 'true'
     end
   end
 end
