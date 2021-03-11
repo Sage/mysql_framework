@@ -4,6 +4,7 @@ module MysqlFramework
   class Connector
     def initialize(options = {})
       @options = default_options.merge(options)
+      @mutex = Mutex.new
 
       Mysql2::Client.default_query_options.merge!(symbolize_keys: true, cast_booleans: true)
     end
@@ -38,31 +39,37 @@ module MysqlFramework
 
     # This method is called to fetch a client from the connection pool.
     def check_out
-      return new_client unless connection_pool_enabled?
+      @mutex.synchronize do
+        begin
+          return new_client unless connection_pool_enabled?
 
-      client = @connection_pool.pop(true)
+          client = @connection_pool.pop(true)
 
-      client.ping if @options[:reconnect]
+          client.ping if @options[:reconnect]
 
-      client
-    rescue ThreadError
-      if @created_connections < max_pool_size
-        client = new_client
-        @created_connections += 1
-        return client
+          client
+        rescue ThreadError
+          if @created_connections < max_pool_size
+            client = new_client
+            @created_connections += 1
+            return client
+          end
+
+          MysqlFramework.logger.error { "[#{self.class}] - Database connection pool depleted." }
+
+          raise 'Database connection pool depleted.'
+        end
       end
-
-      MysqlFramework.logger.error { "[#{self.class}] - Database connection pool depleted." }
-
-      raise 'Database connection pool depleted.'
     end
 
     # This method is called to check a client back in to the connection when no longer needed.
     def check_in(client)
-      return client&.close unless connection_pool_enabled?
+      @mutex.synchronize do
+        return client&.close unless connection_pool_enabled?
 
-      client = new_client if client.nil? || client.closed?
-      @connection_pool.push(client)
+        client = new_client if client.nil? || client.closed?
+        @connection_pool.push(client)
+      end
     end
 
     # This method is called to use a client from the connection pool.
