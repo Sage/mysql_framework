@@ -291,6 +291,35 @@ describe MysqlFramework::Connector do
       expect(results[0][:id]).to eq(guid)
     end
 
+    context 'when cleaning up resources' do
+      let(:mock_client) { double('client') }
+      let(:mock_statement) { double('statement') }
+      let(:mock_result) { double('result') }
+      let(:select_query) { MysqlFramework::SqlQuery.new.select('*').from('demo') }
+
+      before do
+        allow(mock_result).to receive(:to_a)
+        allow(mock_result).to receive(:free)
+
+        allow(mock_statement).to receive(:close)
+        allow(mock_statement).to receive(:execute).and_return(mock_result)
+
+        allow(mock_client).to receive(:prepare).and_return(mock_statement)
+      end
+
+      it 'frees the result' do
+        expect(mock_result).to receive(:free)
+
+        subject.execute(select_query, mock_client)
+      end
+
+      it 'closes the statement' do
+        expect(mock_statement).to receive(:close)
+
+        subject.execute(select_query, mock_client)
+      end
+    end
+
     it 'does not raise a commands out of sync error' do
       threads = []
       threads << Thread.new do
