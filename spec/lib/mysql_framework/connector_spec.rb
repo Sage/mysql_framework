@@ -118,6 +118,12 @@ describe MysqlFramework::Connector do
   end
 
   describe '#check_out' do
+    it 'calls synchronize on the mutex' do
+      expect(subject.instance_variable_get(:@mutex)).to receive(:synchronize)
+
+      subject.check_out
+    end
+
     context 'when connection pooling is enabled' do
       context 'when there are available connections' do
         before do
@@ -203,6 +209,12 @@ describe MysqlFramework::Connector do
   end
 
   describe '#check_in' do
+    it 'calls synchronize on the mutex' do
+      expect(subject.instance_variable_get(:@mutex)).to receive(:synchronize)
+
+      subject.check_out
+    end
+
     context 'when connection pooling is enabled' do
       it 'returns the provided client to the connection pool' do
         expect(subject.connections).to receive(:push).with(client)
