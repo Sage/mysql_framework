@@ -26,7 +26,7 @@ module MysqlFramework
 
       until @connection_pool.empty?
         conn = @connection_pool.pop(true)
-        conn.close
+        conn&.close
       end
 
       @connection_pool = nil
@@ -67,7 +67,7 @@ module MysqlFramework
       @mutex.synchronize do
         return client&.close unless connection_pool_enabled?
 
-        client = new_client if client.nil? || client.closed?
+        client = new_client if client&.closed?
         @connection_pool.push(client)
       end
     end
