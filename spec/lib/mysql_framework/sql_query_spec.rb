@@ -50,6 +50,19 @@ describe MysqlFramework::SqlQuery do
       expect(subject.params).to eq(['9876'])
     end
 
+    context 'when a select query contains conditions with nil values' do
+      it 'does not store them as parameters' do
+        subject.select('*')
+          .from(gems, 40)
+          .where(
+            MysqlFramework::SqlCondition.new(column: 'id', comparison: '=', value: 9876),
+            MysqlFramework::SqlCondition.new(column: 'foo', comparison: 'IS NOT NULL'),
+          )
+        expect(subject.sql).to eq('SELECT * FROM `gems` PARTITION (p40) WHERE (id = ? AND foo IS NOT NULL)')
+        expect(subject.params.size).to eq 1
+      end
+    end
+
     it 'builds a joined select query as expected' do
       subject.select('*')
         .from(gems, 40)

@@ -4,6 +4,7 @@ module MysqlFramework
   class Connector
     def initialize(options = {})
       @options = default_options.merge(options)
+      @mutex = Mutex.new
 
       Mysql2::Client.default_query_options.merge!(symbolize_keys: true, cast_booleans: true)
     end
@@ -25,7 +26,7 @@ module MysqlFramework
 
       until @connection_pool.empty?
         conn = @connection_pool.pop(true)
-        conn.close
+        conn&.close
       end
 
       @connection_pool = nil
@@ -38,32 +39,37 @@ module MysqlFramework
 
     # This method is called to fetch a client from the connection pool.
     def check_out
-      return new_client unless connection_pool_enabled?
+      @mutex.synchronize do
+        begin
+          return new_client unless connection_pool_enabled?
 
-      client = @connection_pool.pop(true)
+          client = @connection_pool.pop(true)
 
-      client.ping if @options[:reconnect]
+          client.ping if @options[:reconnect]
 
-      client
-    rescue ThreadError
-      if @created_connections < max_pool_size
-        client = new_client
-        @created_connections += 1
-        return client
+          client
+        rescue ThreadError
+          if @created_connections < max_pool_size
+            client = new_client
+            @created_connections += 1
+            return client
+          end
+
+          MysqlFramework.logger.error { "[#{self.class}] - Database connection pool depleted." }
+
+          raise 'Database connection pool depleted.'
+        end
       end
-
-      MysqlFramework.logger.error { "[#{self.class}] - Database connection pool depleted." }
-
-      raise 'Database connection pool depleted.'
     end
 
     # This method is called to check a client back in to the connection when no longer needed.
     def check_in(client)
-      return client.close unless connection_pool_enabled?
+      @mutex.synchronize do
+        return client&.close unless connection_pool_enabled?
 
-      client = new_client if client.closed?
-
-      @connection_pool.push(client)
+        client = new_client if client&.closed?
+        @connection_pool.push(client)
+      end
     end
 
     # This method is called to use a client from the connection pool.
@@ -75,10 +81,20 @@ module MysqlFramework
     end
 
     # This method is called to execute a prepared statement
+    #
+    # @note Ensure we free any result and close each statement, otherwise we
+    # can run into a 'Commands out of sync' error if multiple threads are
+    # running different queries at the same time.
     def execute(query, provided_client = nil)
       with_client(provided_client) do |client|
-        statement = client.prepare(query.sql)
-        statement.execute(*query.params)
+        begin
+          statement = client.prepare(query.sql)
+          result = statement.execute(*query.params)
+          result&.to_a
+        ensure
+          result&.free
+          statement&.close
+        end
       end
     end
 

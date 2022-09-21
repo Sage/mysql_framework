@@ -118,6 +118,12 @@ describe MysqlFramework::Connector do
   end
 
   describe '#check_out' do
+    it 'calls synchronize on the mutex' do
+      expect(subject.instance_variable_get(:@mutex)).to receive(:synchronize)
+
+      subject.check_out
+    end
+
     context 'when connection pooling is enabled' do
       context 'when there are available connections' do
         before do
@@ -203,6 +209,12 @@ describe MysqlFramework::Connector do
   end
 
   describe '#check_in' do
+    it 'calls synchronize on the mutex' do
+      expect(subject.instance_variable_get(:@mutex)).to receive(:synchronize)
+
+      subject.check_out
+    end
+
     context 'when connection pooling is enabled' do
       it 'returns the provided client to the connection pool' do
         expect(subject.connections).to receive(:push).with(client)
@@ -230,6 +242,24 @@ describe MysqlFramework::Connector do
         expect(subject.connections).not_to receive(:push)
 
         subject.check_in(client)
+      end
+    end
+
+    context 'when client is nil' do
+      let(:client) { nil }
+
+      context 'when connection pooling is enabled' do
+        it 'does not raise an error' do
+          expect { subject.check_in(client) }.not_to raise_error
+        end
+      end
+
+      context 'when connection pooling is disabled' do
+        let(:connection_pooling_enabled) { 'false' }
+
+        it 'does not raise an error' do
+          expect { subject.check_in(client) }.not_to raise_error
+        end
       end
     end
   end
@@ -271,6 +301,62 @@ describe MysqlFramework::Connector do
       results = subject.query("SELECT * FROM `gems` WHERE id = '#{guid}';", existing_client).to_a
       expect(results.length).to eq(1)
       expect(results[0][:id]).to eq(guid)
+    end
+
+    context 'when cleaning up resources' do
+      let(:mock_client) { double('client') }
+      let(:mock_statement) { double('statement') }
+      let(:mock_result) { double('result') }
+      let(:select_query) { MysqlFramework::SqlQuery.new.select('*').from('demo') }
+
+      before do
+        allow(mock_result).to receive(:to_a)
+        allow(mock_result).to receive(:free)
+
+        allow(mock_statement).to receive(:close)
+        allow(mock_statement).to receive(:execute).and_return(mock_result)
+
+        allow(mock_client).to receive(:prepare).and_return(mock_statement)
+      end
+
+      it 'frees the result' do
+        expect(mock_result).to receive(:free)
+
+        subject.execute(select_query, mock_client)
+      end
+
+      it 'closes the statement' do
+        expect(mock_statement).to receive(:close)
+
+        subject.execute(select_query, mock_client)
+      end
+    end
+
+    it 'does not raise a commands out of sync error' do
+      threads = []
+      threads << Thread.new do
+        350.times do
+          update_query = MysqlFramework::SqlQuery.new.update('gems')
+                                                 .set(updated_at: Time.now)
+          expect { subject.execute(update_query) }.not_to raise_error
+        end
+      end
+
+      threads << Thread.new do
+        350.times do
+          select_query = MysqlFramework::SqlQuery.new.select('*').from('demo')
+          expect { subject.execute(select_query) }.not_to raise_error
+        end
+      end
+
+      threads << Thread.new do
+        350.times do
+          select_query = MysqlFramework::SqlQuery.new.select('*').from('test')
+          expect { subject.execute(select_query) }.not_to raise_error
+        end
+      end
+
+      threads.each(&:join)
     end
   end
 
