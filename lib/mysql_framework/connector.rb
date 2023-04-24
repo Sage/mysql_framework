@@ -68,6 +68,7 @@ module MysqlFramework
         return client&.close unless connection_pool_enabled?
 
         client = new_client if client&.closed?
+        MysqlFramework.logger.error { "[#{self.class}] - About to check_in a nil reference. - created_connections = #{@created_connections}" } if client.nil?
         @connection_pool.push(client)
       end
     end
@@ -76,6 +77,9 @@ module MysqlFramework
     def with_client(provided = nil)
       client = provided || check_out
       yield client
+    rescue
+      MysqlFramework.logger.error { "[#{self.class}] - #{e.message}"}
+      raise
     ensure
       check_in(client) unless provided
     end
