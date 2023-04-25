@@ -427,6 +427,10 @@ describe MysqlFramework::Connector do
   end
 
   describe 'connection pool error handling' do
+    before do
+      expect(subject).to_not receive(:check_in)
+    end
+
     it 'does not add nil to the pool when full and an attempt is made to use it' do
       conns = max_pool_size.times.map { subject.check_out }
       expect { subject.query('select 1') }.to raise_error(RuntimeError)
