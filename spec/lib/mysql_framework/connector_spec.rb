@@ -425,4 +425,14 @@ describe MysqlFramework::Connector do
       end
     end
   end
+
+  describe 'connection pool error handling' do
+    it 'does not add nil to the pool when full and an attempt is made to use it' do
+      conns = max_pool_size.times.map { subject.check_out }
+      expect { subject.query('select 1') }.to raise_error(RuntimeError)
+      # Previous versions had a bug where a nil would be added to the pool
+      # at this point.
+      expect { subject.connections.pop(true) } .to raise_error(ThreadError)
+    end
+  end
 end

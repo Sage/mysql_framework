@@ -77,7 +77,7 @@ module MysqlFramework
       client = provided || check_out
       yield client
     ensure
-      check_in(client) unless provided
+      check_in(client) if client && !provided
     end
 
     # This method is called to execute a prepared statement
