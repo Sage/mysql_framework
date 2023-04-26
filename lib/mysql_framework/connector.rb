@@ -77,6 +77,7 @@ module MysqlFramework
       client = provided || check_out
       yield client
     ensure
+      MysqlFramework.logger.error { "[#{self.class}] - Checking in nil client \n#{caller}" } unless client 
       check_in(client) unless provided
     end
 
