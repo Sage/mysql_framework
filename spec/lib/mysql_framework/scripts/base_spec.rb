@@ -90,7 +90,7 @@ describe MysqlFramework::Scripts::Base do
   describe '#index_up_to_date?' do
     before do
       expect(client).to receive(:query).and_return(
-        [{ Column_name: 'a' }, { Column_name: 'b' }]
+        [{ Column_name: 'b', Seq_in_index: 2 }, { Column_name: 'a', Seq_in_index: 1 }]
       )
     end
 
