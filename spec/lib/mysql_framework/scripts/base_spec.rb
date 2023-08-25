@@ -86,4 +86,28 @@ describe MysqlFramework::Scripts::Base do
       expect(subject.index_exists?(client,'foo','bar')).to eq(false)
     end
   end
+
+  describe '#index_up_to_date?' do
+    before do
+      expect(client).to receive(:query).and_return(
+        [{ Column_name: 'a' }, { Column_name: 'b' }]
+      )
+    end
+
+    it 'returns true when index is up to date' do
+      expect(subject.index_up_to_date?(client, 'foo', 'bar', ['a', 'b'])).to eq(true)
+    end
+
+    it 'returns false when index is missing a column' do
+      expect(subject.index_up_to_date?(client, 'foo', 'bar', ['a', 'b', 'c'])).to eq(false)
+    end
+
+    it 'returns false when index is having too many columns' do
+      expect(subject.index_up_to_date?(client, 'foo', 'bar', ['a'])).to eq(false)
+    end
+
+    it 'returns false when index has columns in wrong order' do
+      expect(subject.index_up_to_date?(client, 'foo', 'bar', ['b', 'a'])).to eq(false)
+    end
+  end
 end
