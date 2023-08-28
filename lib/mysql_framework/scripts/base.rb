@@ -50,6 +50,21 @@ module MysqlFramework
         result.count >= 1
       end
 
+      def index_up_to_date?(client, table_name, index_name, columns)
+        result = client.query(<<~SQL)
+          SHOW INDEX FROM #{table_name} WHERE Key_name="#{index_name}";
+        SQL
+
+        return false if result.size != columns.size
+
+        index_columns = result.sort_by { |column| column[:Seq_in_index] }
+        index_columns.each_with_index do |column, i|
+          return false if column[:Column_name] != columns[i]
+        end
+
+        true
+      end
+
       protected
 
       def generate_partition_sql
