@@ -8,7 +8,7 @@ module MysqlFramework
       end
 
       def execute
-        lock_manager.with_lock(key: self.class) do
+        lock_manager.with_lock(key: self.class.name) do
           initialize_script_history
 
           executed_scripts = retrieve_executed_scripts
