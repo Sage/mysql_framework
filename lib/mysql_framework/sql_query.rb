@@ -127,7 +127,7 @@ module MysqlFramework
       @sql += " (#{conditions.join(' AND ')}) "
 
       conditions.each do |condition|
-        next if condition.value.nil?
+        next if condition.value.nil? && !skip_nil_validation?
         if condition.value.is_a?(Enumerable)
           @params.concat(condition.value)
         else
@@ -262,6 +262,12 @@ module MysqlFramework
       @dup_query = " ON DUPLICATE KEY UPDATE #{duplicates.join(', ')}"
 
       self
+    end
+
+    private
+
+    def skip_nil_validation?
+      ENV.fetch('MYSQL_FRAMEWORK_SKIP_NIL_VALUE_VALIDATION', 'false').downcase == 'true'
     end
   end
 end

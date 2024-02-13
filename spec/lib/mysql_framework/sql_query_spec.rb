@@ -233,6 +233,33 @@ describe MysqlFramework::SqlQuery do
         expect(subject.sql).to eq('WHERE (`gems`.`author` = ? AND `gems`.`created_at` > ?) AND (`gems`.`name` IN (?, ?))')
       end
     end
+
+    context 'when condition is nil' do
+      context 'when MYSQL_FRAMEWORK_SKIP_NIL_VALUE_VALIDATION is not present' do
+        it 'concats the parameter collections' do
+          expect { subject.where(gems[:created_at].eq(nil)) }.to raise_error ArgumentError
+        end
+      end
+
+      context 'when MYSQL_FRAMEWORK_SKIP_NIL_VALUE_VALIDATION is present' do
+        after(:each) { ENV.delete('MYSQL_FRAMEWORK_SKIP_NIL_VALUE_VALIDATION') }
+
+        context 'when value is false' do
+          it 'concats the parameter collections' do
+            ENV['MYSQL_FRAMEWORK_SKIP_NIL_VALUE_VALIDATION'] =  'false'
+            expect { subject.where(gems[:created_at].eq(nil)) }.to raise_error ArgumentError
+          end
+        end
+
+        context 'when value is true' do
+          it 'concats the parameter collections' do
+            ENV['MYSQL_FRAMEWORK_SKIP_NIL_VALUE_VALIDATION'] =  'true'
+            query = subject.where(gems[:updated_at].eq(nil))
+            expect(query.params).to eq ['sage', '2018-01-01 00:00:00', nil]
+          end
+        end
+      end
+    end
   end
 
   describe '#and' do
