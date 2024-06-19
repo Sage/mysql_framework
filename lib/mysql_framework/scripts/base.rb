@@ -50,6 +50,14 @@ module MysqlFramework
         result.count >= 1
       end
 
+      def user_exists?(client, user, host)
+        result = client.query(<<~SQL)
+           SELECT user FROM mysql.user WHERE user = '#{user}' AND host = '#{host}';
+        SQL
+
+        result.count == 1
+      end
+
       def index_up_to_date?(client, table_name, index_name, columns)
         result = client.query(<<~SQL)
           SHOW INDEX FROM #{table_name} WHERE Key_name="#{index_name}";

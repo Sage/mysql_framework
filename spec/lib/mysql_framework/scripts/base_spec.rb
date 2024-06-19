@@ -87,6 +87,18 @@ describe MysqlFramework::Scripts::Base do
     end
   end
 
+  describe '#user_exists?' do
+    it 'returns true when user exists' do
+      expect(client).to receive(:query).and_return(['result'])
+      expect(subject.user_exists?(client,'foo', 'localhost')).to eq(true)
+    end
+
+    it 'returns false when user does not exist' do
+      expect(client).to receive(:query).and_return([])
+      expect(subject.user_exists?(client,'foo', 'localhost')).to eq(false)
+    end
+  end
+
   describe '#index_up_to_date?' do
     before do
       expect(client).to receive(:query).and_return(
