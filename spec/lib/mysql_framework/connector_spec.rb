@@ -425,4 +425,23 @@ describe MysqlFramework::Connector do
       end
     end
   end
+
+  describe 'when connection pool is exhausted' do
+    before do
+      max_pool_size.times { subject.check_out }
+    end
+
+    it 'pop throws exception' do
+      expect { subject.connections.pop(true) }.to raise_error(ThreadError)
+    end
+
+    it 'throws exception on query' do
+      expect { subject.query('SELECT 1') }.to raise_error(RuntimeError, /depleted/)
+    end
+
+    it 'does not put nil in the pool on error' do
+      expect(subject).to_not receive(:check_in).with(nil)
+      expect { subject.query('SELECT 1') }.to raise_error(RuntimeError, /depleted/)
+    end
+  end
 end
