@@ -26,4 +26,6 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency 'mysql2', '~> 0.4'
   spec.add_dependency 'redlock'
+  spec.add_dependency 'connection_pool'
+  spec.add_dependency 'activerecord', '~> 8.1', '>= 8.1.1'
 end

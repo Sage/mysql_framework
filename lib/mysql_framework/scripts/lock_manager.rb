@@ -1,12 +1,16 @@
 # frozen_string_literal: true
 
 require 'redlock'
+require 'connection_pool'
 
 module MysqlFramework
   module Scripts
     class LockManager
       def initialize
-        @pool = Queue.new
+        @pool = ConnectionPool.new(size: pool_size, timeout: pool_timeout) do
+          # By not letting redlock retry we will rely on the retry that happens in this class
+          Redlock::Client.new([redis_url], retry_jitter: retry_jitter, retry_count: 1, retry_delay: 0)
+        end
       end
 
       # This method is called to request a lock (Default 5 minutes)
@@ -63,18 +67,12 @@ module MysqlFramework
 
       # This method is called to retrieve a Redlock client from the pool
       def fetch_client
-        @pool.pop(true)
-      rescue StandardError
-        # By not letting redlock retry we will rely on the retry that happens in this class
-        Redlock::Client.new([redis_url], retry_jitter: retry_jitter, retry_count: 1, retry_delay: 0)
+        @pool.checkout
       end
 
       # This method is called to retrieve a Redlock client from the pool and yield it to a block
       def with_client
-        client = fetch_client
-        yield client
-      ensure
-        @pool.push(client)
+        @pool.with { |client| yield client }
       end
 
       private
@@ -97,6 +95,14 @@ module MysqlFramework
 
       def retry_jitter
         @retry_jitter ||= Integer(ENV.fetch('MYSQL_MIGRATION_LOCK_JITTER_MS', 50))
+      end
+
+      def pool_size
+        @pool_size ||= Integer(ENV.fetch('MYSQL_MIGRATION_LOCK_POOL_SIZE', 5))
+      end
+
+      def pool_timeout
+        @pool_timeout ||= Integer(ENV.fetch('MYSQL_MIGRATION_LOCK_POOL_TIMEOUT', 5))
       end
     end
   end

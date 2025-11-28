@@ -27,7 +27,7 @@ module MysqlFramework
       end
 
       def apply_by_tag(tags)
-        lock_manager.with_lock(key: self.class) do
+        lock_manager.with_lock(key: self.class.name) do
           initialize_script_history
 
           mysql_connector.transaction do |client|
