@@ -142,7 +142,8 @@ module MysqlFramework
         password: ENV.fetch('MYSQL_PASSWORD'),
         reconnect: true,
         read_timeout: Integer(ENV.fetch('MYSQL_READ_TIMEOUT', 30)),
-        write_timeout: Integer(ENV.fetch('MYSQL_WRITE_TIMEOUT', 10))
+        write_timeout: Integer(ENV.fetch('MYSQL_WRITE_TIMEOUT', 10)),
+        ssl_mode: 'DISABLED'
       }
     end
 
