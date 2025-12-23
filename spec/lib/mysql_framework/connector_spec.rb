@@ -12,7 +12,8 @@ describe MysqlFramework::Connector do
       password: ENV.fetch('MYSQL_PASSWORD'),
       reconnect: true,
       read_timeout: ENV.fetch('MYSQL_READ_TIMEOUT', 30),
-      write_timeout: ENV.fetch('MYSQL_WRITE_TIMEOUT', 10)
+      write_timeout: ENV.fetch('MYSQL_WRITE_TIMEOUT', 10),
+      ssl_mode: 'DISABLED'
     }
   end
   let(:options) do
@@ -67,7 +68,8 @@ describe MysqlFramework::Connector do
           password: ENV.fetch('MYSQL_PASSWORD'),
           reconnect: false,
           read_timeout: ENV.fetch('MYSQL_READ_TIMEOUT', 30),
-          write_timeout: ENV.fetch('MYSQL_WRITE_TIMEOUT', 10)
+          write_timeout: ENV.fetch('MYSQL_WRITE_TIMEOUT', 10),
+          ssl_mode: 'DISABLED'
         }
 
         expect(subject.instance_variable_get(:@options)).to eq(expected)
