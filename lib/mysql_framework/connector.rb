@@ -1,83 +1,104 @@
 # frozen_string_literal: true
 
+require 'active_record'
+require 'active_record/connection_adapters/mysql2_adapter'
+
+# Monkeypatch the MySQL2 adapter to return hashes with symbol keys by default
+module MysqlFramework
+  module Mysql2AdapterPatch
+    def configure_connection
+      super
+      @raw_connection.query_options[:as] = :hash
+      @raw_connection.query_options[:symbolize_keys] = true
+      @raw_connection.query_options[:cast_booleans] = true
+    end
+  end
+end
+
+ActiveRecord::ConnectionAdapters::Mysql2Adapter.prepend(MysqlFramework::Mysql2AdapterPatch)
+
 module MysqlFramework
   class Connector
     def initialize(options = {})
       @options = default_options.merge(options)
-      @mutex = Mutex.new
-
-      Mysql2::Client.default_query_options.merge!(symbolize_keys: true, cast_booleans: true)
+      @connection_map = nil
+      @map_mutex = Mutex.new
+      @setup_mutex = Mutex.new
+      @setup_complete = false
     end
 
-    # This method is called to setup a pool of MySQL connections.
+    # This method is called to setup the ActiveRecord connection pool.
     def setup
-      return unless connection_pool_enabled?
+      return if @setup_complete
 
-      @connection_pool = ::Queue.new
+      @setup_mutex.synchronize do
+        return if @setup_complete
 
-      start_pool_size.times { @connection_pool.push(new_client) }
-
-      @created_connections = start_pool_size
+        ActiveRecord::Base.establish_connection(active_record_config)
+        @connection_map = {}
+        @setup_complete = true
+      end
     end
 
     # This method is called to close all MySQL connections in the pool and dispose of the pool itself.
     def dispose
-      return if @connection_pool.nil?
+      return unless @setup_complete
 
-      until @connection_pool.empty?
-        conn = @connection_pool.pop(true)
-        conn&.close
+      ActiveRecord::Base.connection_pool.disconnect!
+
+      @map_mutex.synchronize do
+        @connection_map.clear
       end
 
-      @connection_pool = nil
+      @setup_complete = false
     end
 
-    # This method is called to get the idle connection queue for this connector.
+    # This method is called to get the connection pool for this connector.
     def connections
-      @connection_pool
+      return nil unless @setup_complete
+
+      ActiveRecord::Base.connection_pool
     end
 
     # This method is called to fetch a client from the connection pool.
     def check_out
-      @mutex.synchronize do
-        begin
-          return new_client unless connection_pool_enabled?
+      setup unless @setup_complete
 
-          client = @connection_pool.pop(true)
+      adapter = ActiveRecord::Base.connection_pool.checkout
+      raw_conn = adapter.raw_connection
 
-          client.ping if @options[:reconnect]
-
-          client
-        rescue ThreadError
-          if @created_connections < max_pool_size
-            client = new_client
-            @created_connections += 1
-            return client
-          end
-
-          MysqlFramework.logger.error { "[#{self.class}] - Database connection pool depleted." }
-
-          raise 'Database connection pool depleted.'
-        end
+      @map_mutex.synchronize do
+        @connection_map[raw_conn.object_id] = adapter
       end
+
+      raw_conn
     end
 
     # This method is called to check a client back in to the connection when no longer needed.
     def check_in(client)
-      @mutex.synchronize do
-        return client&.close unless connection_pool_enabled?
+      return if client.nil? || !@setup_complete
 
-        client = new_client if client&.closed?
-        @connection_pool.push(client)
+      adapter = @map_mutex.synchronize do
+        @connection_map.delete(client.object_id)
+      end
+
+      if adapter
+        ActiveRecord::Base.connection_pool.checkin(adapter)
+      else
+        MysqlFramework.logger.warn { "[#{self.class}] - Unable to find adapter for raw connection during check_in" }
       end
     end
 
     # This method is called to use a client from the connection pool.
     def with_client(provided = nil)
-      client = provided || check_out
-      yield client
-    ensure
-      check_in(client) if client && !provided
+      if provided
+        yield provided
+      else
+        setup unless @setup_complete
+        ActiveRecord::Base.connection_pool.with_connection do |connection|
+          yield connection.raw_connection
+        end
+      end
     end
 
     # This method is called to execute a prepared statement
@@ -87,14 +108,12 @@ module MysqlFramework
     # running different queries at the same time.
     def execute(query, provided_client = nil)
       with_client(provided_client) do |client|
-        begin
-          statement = client.prepare(query.sql)
-          result = statement.execute(*query.params)
-          result&.to_a
-        ensure
-          result&.free
-          statement&.close
-        end
+        statement = client.prepare(query.sql)
+        result = statement.execute(*query.params)
+        result&.to_a
+      ensure
+        result&.free
+        statement&.close
       end
     end
 
@@ -146,20 +165,28 @@ module MysqlFramework
       }
     end
 
-    def new_client
-      Mysql2::Client.new(@options)
-    end
-
-    def connection_pool_enabled?
-      @connection_pool_enabled ||= ENV.fetch('MYSQL_CONNECTION_POOL_ENABLED', 'true').casecmp?('true')
-    end
-
-    def start_pool_size
-      @start_pool_size ||= Integer(ENV.fetch('MYSQL_START_POOL_SIZE', 1))
+    def active_record_config
+      {
+        adapter: 'mysql2',
+        host: @options[:host],
+        port: @options[:port],
+        database: @options[:database],
+        username: @options[:username],
+        password: @options[:password],
+        reconnect: @options[:reconnect],
+        read_timeout: @options[:read_timeout],
+        write_timeout: @options[:write_timeout],
+        pool: max_pool_size,
+        checkout_timeout: pool_timeout
+      }
     end
 
     def max_pool_size
       @max_pool_size ||= Integer(ENV.fetch('MYSQL_MAX_POOL_SIZE', 5))
+    end
+
+    def pool_timeout
+      @pool_timeout ||= Integer(ENV.fetch('MYSQL_POOL_TIMEOUT', 5))
     end
   end
 end
