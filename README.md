@@ -220,6 +220,17 @@ connector.with_client do |client|
 end
 ```
 
+**Warning: re-entrant connections within the same thread**
+
+The `connection_pool` gem implements thread-local connection tracking. When a thread already holds a connection via `with_client` (or `check_out`), any nested call to `with_client` or `check_out` on the **same thread** returns the **same connection** — it does not check out a second one from the pool.
+
+This means that if you fire an async query on a connection and then attempt to run a second query (e.g. via `run_query` or `connector.query`) from within the same `with_client` block, the nested call will receive the already-checked-out connection. Sanitization will then fail with:
+
+```
+Connection sanitization failed: This connection is still waiting for a result,
+try again once you have the result
+```
+
 It can optionally accept an existing client to avoid starting new connections in the middle of a transaction. This can be used to ensure that a series of queries are wrapped by the same transaction.
 
 ```ruby
