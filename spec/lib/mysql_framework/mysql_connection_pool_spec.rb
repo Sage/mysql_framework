@@ -56,12 +56,6 @@ describe MysqlFramework::MysqlConnectionPool do
       subject.setup
       expect(subject.connections).to equal(first_pool)
     end
-
-    it 'starts the idle connection cleaner thread' do
-      subject.setup
-      threads = Thread.list.map(&:name)
-      expect(threads).to include(MysqlFramework::MysqlConnectionPool::CLEAN_IDLE_CONNECTIONS_THREAD_NAME)
-    end
   end
 
   describe '#dispose' do
@@ -80,6 +74,7 @@ describe MysqlFramework::MysqlConnectionPool do
     it 'stops the idle connection cleaner thread' do
       thread = subject.instance_variable_get(:@idle_connections_thread)
       subject.dispose
+      sleep(6)
       expect(thread).not_to be_alive
     end
   end

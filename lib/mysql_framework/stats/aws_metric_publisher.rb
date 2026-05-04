@@ -42,8 +42,9 @@ module MysqlFramework
       def start
         return if running?
 
+        thread_name = "#{THREAD_NAME}-#{object_id}"
         thread = Thread.new do
-          Thread.current.name = THREAD_NAME
+          Thread.current.name = thread_name
           loop do
             sleep @publish_interval
             break unless Thread.current == @thread

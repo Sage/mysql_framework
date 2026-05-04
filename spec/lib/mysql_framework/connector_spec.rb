@@ -33,10 +33,14 @@ describe MysqlFramework::Connector do
 
   before do
     allow(ENV).to receive(:fetch).and_call_original
-    allow(ENV).to receive(:fetch).with('MYSQL_CONNECTION_POOL_ENABLED', 'true')
+    allow(ENV).to receive(:fetch).with('MYSQL_CONNECTION_POOL_ENABLED', 'false')
       .and_return(connection_pooling_enabled)
 
     subject.setup
+  end
+
+  after do
+    subject.dispose
   end
 
   describe '#initialize' do
@@ -99,7 +103,7 @@ describe MysqlFramework::Connector do
   describe '#dispose' do
     context 'when connection pooling is enabled' do
       it 'disposes of the pool and clears connector reference' do
-        pool = instance_double(MysqlFramework::MysqlConnectionPool)
+        pool = instance_double(MysqlFramework::MysqlConnectionPool, dispose: true)
         allow(pool).to receive(:dispose)
         subject.instance_variable_set(:@connection_pool, pool)
 
@@ -123,7 +127,7 @@ describe MysqlFramework::Connector do
   describe '#check_out' do
     context 'when connection pooling is enabled' do
       it 'checks out pooled connection' do
-        pool = instance_double(MysqlFramework::MysqlConnectionPool)
+        pool = instance_double(MysqlFramework::MysqlConnectionPool, dispose: true)
         client = instance_double(Mysql2::Client)
         allow(pool).to receive(:check_out).and_return(client)
         subject.instance_variable_set(:@connection_pool, pool)
@@ -148,7 +152,7 @@ describe MysqlFramework::Connector do
   describe '#check_in' do
     context 'when connection pooling is enabled' do
       it 'checks in a pooled connection' do
-        pool = instance_double(MysqlFramework::MysqlConnectionPool)
+        pool = instance_double(MysqlFramework::MysqlConnectionPool, dispose: true)
         allow(pool).to receive(:check_in)
         subject.instance_variable_set(:@connection_pool, pool)
 
@@ -208,7 +212,7 @@ describe MysqlFramework::Connector do
 
       context 'when connection pooling is enabled' do
         it 'delegates to the connection pool' do
-          pool = instance_double(MysqlFramework::MysqlConnectionPool)
+          pool = instance_double(MysqlFramework::MysqlConnectionPool, dispose: true)
           subject.instance_variable_set(:@connection_pool, pool)
 
           expect(pool).to receive(:with_client).with(discard_current_pool_connection: false).and_yield(client)
@@ -216,7 +220,7 @@ describe MysqlFramework::Connector do
         end
 
         it 'passes discard_current_pool_connection: true to the pool when requested' do
-          pool = instance_double(MysqlFramework::MysqlConnectionPool)
+          pool = instance_double(MysqlFramework::MysqlConnectionPool, dispose: true)
           subject.instance_variable_set(:@connection_pool, pool)
 
           expect(pool).to receive(:with_client).with(discard_current_pool_connection: true).and_yield(client)
@@ -224,7 +228,7 @@ describe MysqlFramework::Connector do
         end
 
         it 'returns the block result' do
-          pool = instance_double(MysqlFramework::MysqlConnectionPool)
+          pool = instance_double(MysqlFramework::MysqlConnectionPool, dispose: true)
           subject.instance_variable_set(:@connection_pool, pool)
           allow(pool).to receive(:with_client).and_yield(client)
 

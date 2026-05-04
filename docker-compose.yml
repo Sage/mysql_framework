@@ -1,6 +1,6 @@
 services:
   test-runner:
-    image: ruby:3.4
+    image: ruby:4.0
     working_dir: /usr/src/app
     container_name: test-runner
     command: sh -c "while true; do echo 'Container is running..'; sleep 5; done"

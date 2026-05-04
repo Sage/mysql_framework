@@ -122,8 +122,9 @@ module MysqlFramework
     private
 
     def start_clean_idle_connections_thread
+      thread_name = "#{CLEAN_IDLE_CONNECTIONS_THREAD_NAME}-#{object_id}"
       @idle_connections_thread = Thread.new do
-        Thread.current.name = CLEAN_IDLE_CONNECTIONS_THREAD_NAME
+        Thread.current.name = thread_name
         loop do
           sleep idle_reap_loop_time
           break unless Thread.current == @idle_connections_thread
@@ -132,7 +133,10 @@ module MysqlFramework
         end
       end
 
-      @idle_connections_thread.abort_on_exception = false
+      # require 'debug'
+      # debugger
+
+      @idle_connections_thread.abort_on_exception # = false
       @idle_connections_thread
     end
 

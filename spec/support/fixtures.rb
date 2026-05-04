@@ -7,7 +7,7 @@ module MysqlFramework
         connector = MysqlFramework::Connector.new(
           host: ENV.fetch('MYSQL_HOST'),
           port: ENV.fetch('MYSQL_PORT'),
-          database: nil,
+          database: ENV.fetch('MYSQL_DATABASE'),
           username: ENV.fetch('MYSQL_USERNAME'),
           password: ENV.fetch('MYSQL_PASSWORD')
         )

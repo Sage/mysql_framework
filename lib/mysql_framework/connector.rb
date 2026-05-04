@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'connection_pool'
 require_relative 'mysql_connection_pool'
 
 module MysqlFramework

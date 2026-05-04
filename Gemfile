@@ -8,4 +8,5 @@ end
 
 group :test do
   gem 'simplecov', require: false
+  gem 'debug', require: false
 end
