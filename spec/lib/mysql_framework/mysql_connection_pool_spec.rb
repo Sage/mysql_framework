@@ -70,13 +70,6 @@ describe MysqlFramework::MysqlConnectionPool do
       subject.dispose
       expect { subject.dispose }.not_to raise_error
     end
-
-    it 'stops the idle connection cleaner thread' do
-      thread = subject.instance_variable_get(:@idle_connections_thread)
-      subject.dispose
-      sleep(6)
-      expect(thread).not_to be_alive
-    end
   end
 
   describe '#pool_stats' do

@@ -34,7 +34,7 @@ gem 'mysql_framework'
 
 #### MySQL Connection Pooling Variables
 
-* `MYSQL_CONNECTION_POOL_ENABLED` - enables/disables pooling (default: `false`)
+* `MYSQL_CONNECTION_POOL_ENABLED` - enables/disables pooling (default: `true`)
 * `MYSQL_MAX_POOL_SIZE` - how many connections should the pool be allowed to grow to (default: `5`)
 * `MYSQL_POOL_TIMEOUT` - how long to wait for a pooled connection before timing out (default: `5` seconds)
 * `MYSQL_POOL_IDLE_TIMEOUT` - how long a pooled connection can remain idle before being reaped (default: `300` seconds)

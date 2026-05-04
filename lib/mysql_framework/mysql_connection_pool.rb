@@ -133,9 +133,6 @@ module MysqlFramework
         end
       end
 
-      # require 'debug'
-      # debugger
-
       @idle_connections_thread.abort_on_exception # = false
       @idle_connections_thread
     end

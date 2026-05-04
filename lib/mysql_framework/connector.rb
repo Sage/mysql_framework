@@ -154,10 +154,10 @@ module MysqlFramework
     # @yield [client] block executed between BEGIN and COMMIT
     # @yieldparam client [Mysql2::Client]
     # @return [Object] block result
-    # @raise [LocalJumpError] when no block is given
+    # @raise [ArgumentError] when no block is given
     # @raise [StandardError] re-raises any exception after rollback
     def transaction
-      raise LocalJumpError, 'No block was given' unless block_given?
+      raise ArgumentError, 'No block was given' unless block_given?
 
       with_client do |client|
         client.query('BEGIN')
@@ -198,7 +198,7 @@ module MysqlFramework
     def connection_pool_enabled?
       return @connection_pool_enabled unless @connection_pool_enabled.nil?
 
-      @connection_pool_enabled = ENV.fetch('MYSQL_CONNECTION_POOL_ENABLED', 'false').casecmp?('true')
+      @connection_pool_enabled = ENV.fetch('MYSQL_CONNECTION_POOL_ENABLED', 'true').casecmp?('true')
     end
   end
 end

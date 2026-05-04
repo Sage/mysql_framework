@@ -33,7 +33,7 @@ describe MysqlFramework::Connector do
 
   before do
     allow(ENV).to receive(:fetch).and_call_original
-    allow(ENV).to receive(:fetch).with('MYSQL_CONNECTION_POOL_ENABLED', 'false')
+    allow(ENV).to receive(:fetch).with('MYSQL_CONNECTION_POOL_ENABLED', 'true')
       .and_return(connection_pooling_enabled)
 
     subject.setup
