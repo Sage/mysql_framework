@@ -1,4 +1,5 @@
 name: Publish Gem
+
 on:
   release:
     types:
@@ -6,18 +7,19 @@ on:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest 
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      id-token: write
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
+
+      - name: Configure trusted publishing credentials
+        uses: rubygems/configure-rubygems-credentials@v1.0.0
 
       - name: Publish to RubyGems
         run: |
-          mkdir -p $HOME/.gem
-          touch $HOME/.gem/credentials
-          chmod 0600 $HOME/.gem/credentials
-          printf -- "---\n:rubygems_api_key: ${GEM_HOST_API_KEY}\n" > $HOME/.gem/credentials
-          gem build mysql_framework.gemspec
-          gem push mysql_framework-*.gem
-        env:
-          GEM_HOST_API_KEY: "${{secrets.RUBYGEMS_AUTH_TOKEN}}"
+          gem build eventq.gemspec
+          gem push eventq-*.gem
