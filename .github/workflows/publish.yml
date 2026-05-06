@@ -21,5 +21,5 @@ jobs:
 
       - name: Publish to RubyGems
         run: |
-          gem build eventq.gemspec
-          gem push eventq-*.gem
+          gem build mysql_framework.gemspec
+          gem push mysql_framework-*.gem
