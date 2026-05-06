@@ -1,8 +1,6 @@
-version: '2.1'
-
 services:
   test-runner:
-    image: ruby:2.4
+    image: ruby:4.0
     working_dir: /usr/src/app
     container_name: test-runner
     command: sh -c "while true; do echo 'Container is running..'; sleep 5; done"
@@ -21,7 +19,7 @@ services:
 
   test-mysql:
     container_name: test-mysql
-    image: mysql:5.7
+    image: mysql:8
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: admin

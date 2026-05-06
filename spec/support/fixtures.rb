@@ -39,6 +39,16 @@ module MysqlFramework
         SQL
 
         connector.check_in(client)
+        connector.dispose
+
+        connector = MysqlFramework::Connector.new(
+          host: ENV.fetch('MYSQL_HOST'),
+          port: ENV.fetch('MYSQL_PORT'),
+          database: ENV.fetch('MYSQL_DATABASE'),
+          username: ENV.fetch('MYSQL_USERNAME'),
+          password: ENV.fetch('MYSQL_PASSWORD')
+        )
+        connector.setup
 
         manager = MysqlFramework::Scripts::Manager.new(connector)
         manager.execute

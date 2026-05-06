@@ -1,133 +1,171 @@
 # frozen_string_literal: true
 
+require_relative 'mysql_connection_pool'
+
 module MysqlFramework
   class Connector
+    attr_reader :connection_pool
+
+    # Initializes a connector instance with MySQL client options.
+    #
+    # @param options [Hash] custom MySQL client options that override defaults
+    # @return [void]
     def initialize(options = {})
       @options = default_options.merge(options)
-      @mutex = Mutex.new
-
       Mysql2::Client.default_query_options.merge!(symbolize_keys: true, cast_booleans: true)
     end
 
-    # This method is called to setup a pool of MySQL connections.
+    # Sets up the MySQL connection pool when pooling is enabled.
+    #
+    # @return [ConnectionPool, nil] configured pool, or nil when pooling is disabled
     def setup
       return unless connection_pool_enabled?
 
-      @connection_pool = ::Queue.new
-
-      start_pool_size.times { @connection_pool.push(new_client) }
-
-      @created_connections = start_pool_size
+      @connection_pool = MysqlFramework::MysqlConnectionPool.new(@options)
+      @connection_pool.setup
     end
 
-    # This method is called to close all MySQL connections in the pool and dispose of the pool itself.
+    # Disposes of the connection pool and closes pooled connections.
+    #
+    # @return [void]
     def dispose
-      return if @connection_pool.nil?
+      return unless connection_pool_enabled?
 
-      until @connection_pool.empty?
-        conn = @connection_pool.pop(true)
-        conn&.close
-      end
-
+      @connection_pool&.dispose
       @connection_pool = nil
     end
 
-    # This method is called to get the idle connection queue for this connector.
-    def connections
-      @connection_pool
-    end
-
-    # This method is called to fetch a client from the connection pool.
-    def check_out
-      @mutex.synchronize do
-        begin
-          return new_client unless connection_pool_enabled?
-
-          client = @connection_pool.pop(true)
-
-          client.ping if @options[:reconnect]
-
-          client
-        rescue ThreadError
-          if @created_connections < max_pool_size
-            client = new_client
-            @created_connections += 1
-            return client
-          end
-
-          MysqlFramework.logger.error { "[#{self.class}] - Database connection pool depleted." }
-
-          raise 'Database connection pool depleted.'
-        end
-      end
-    end
-
-    # This method is called to check a client back in to the connection when no longer needed.
-    def check_in(client)
-      @mutex.synchronize do
-        return client&.close unless connection_pool_enabled?
-
-        client = new_client if client&.closed?
-        @connection_pool.push(client)
-      end
-    end
-
-    # This method is called to use a client from the connection pool.
-    def with_client(provided = nil)
-      client = provided || check_out
-      yield client
-    ensure
-      check_in(client) if client && !provided
-    end
-
-    # This method is called to execute a prepared statement
+    # Checks out a MySQL client, sanitizing it before use.
     #
-    # @note Ensure we free any result and close each statement, otherwise we
-    # can run into a 'Commands out of sync' error if multiple threads are
-    # running different queries at the same time.
+    # @return [Mysql2::Client] checked-out client
+    # @raise [ConnectionSanitizationError] when sanitization repeatedly fails
+    # @raise [Mysql2::Error] when checkout or sanitization fails due to MySQL errors
+    def check_out
+      return new_client unless connection_pool_enabled?
+
+      @connection_pool.check_out
+    end
+
+    # Returns a MySQL client back to the pool or closes it when pooling is disabled.
+    #
+    # @param client [Mysql2::Client, nil] client to return or close
+    # @return [void]
+    def check_in(client)
+      return client&.close unless connection_pool_enabled?
+
+      @connection_pool.check_in(client)
+    end
+
+    # Yields a MySQL client from the pool, or yields the provided client directly.
+    #
+    # @param provided_client [Mysql2::Client, nil] existing client to yield without pool checkout
+    # @param discard_current_pool_connection [Boolean] whether to discard the pooled connection after use
+    # @yield [client] block that performs work with a MySQL client
+    # @yieldparam client [Mysql2::Client]
+    # @return [Object] block result
+    # @raise [Mysql2::Error] re-raises MySQL errors from the block
+    def with_client(provided_client = nil, discard_current_pool_connection: false)
+      return yield provided_client if provided_client
+      return with_new_client { |c| yield c } unless connection_pool_enabled?
+
+      @connection_pool.with_client(discard_current_pool_connection:) { |c| yield c }
+    end
+
+    # Executes a prepared statement.
+    #
+    # @param query [Object] query object responding to +sql+ and +params+
+    # @param provided_client [Mysql2::Client, nil] optional existing client
+    # @return [Array<Hash>, nil] query result rows
+    # @raise [Mysql2::Error] when statement preparation or execution fails
+    #
+    # NOTE:
+    # We must always free the result and close the prepared statement.
+    # Otherwise MySQL may raise "Commands out of sync" when the same
+    # connection is reused (e.g. via connection pooling).
+    #
+    # The connection itself must NOT be closed here because it is
+    # managed by the connection pool.
     def execute(query, provided_client = nil)
       with_client(provided_client) do |client|
+        statement = nil
+        result = nil
+
         begin
           statement = client.prepare(query.sql)
-          result = statement.execute(*query.params)
-          result&.to_a
+          result = statement.execute(
+            *query.params, symbolize_keys: true, cast_booleans: true
+          )
+          final = result&.to_a
+          final
         ensure
+          client&.abandon_results!
           result&.free
           statement&.close
         end
       end
     end
 
-    # This method is called to execute a query
+    # Executes a SQL query.
+    #
+    # @param query_string [String] SQL query to execute
+    # @param provided_client [Mysql2::Client, nil] optional existing client
+    # @return [Mysql2::Result] raw MySQL result
+    # @raise [Mysql2::Error] when query execution fails
     def query(query_string, provided_client = nil)
-      with_client(provided_client) { |client| client.query(query_string) }
+      with_client(provided_client) { |conn| conn.query(query_string) }
     end
 
-    # This method is called to execute a query which will return multiple result sets in an array
+    # Executes a multi-statement SQL query and collects all result sets.
+    #
+    # @param query_string [String] multi-statement SQL query
+    # @param provided_client [Mysql2::Client, nil] optional existing client
+    # @return [Array<Array<Hash>>] list of result sets
+    # @raise [Mysql2::Error] when query execution or result fetching fails
     def query_multiple_results(query_string, provided_client = nil)
-      results = with_client(provided_client) do |client|
-        result = []
-        result << client.query(query_string)
-        result << client.store_result while client.next_result
-        result.compact
+      results = nil
+
+      # Multiple statement query is buggy and client cannot be reused after calling next_result/store_result
+      # Client's state gets corrupted and leaks into next queries. The reason is unknown.
+      # As a result we do not return client back to the pool but instead close connection which is not optimal.
+      with_client(provided_client, discard_current_pool_connection: true) do |client|
+        raw_results = []
+        query_call = client.query(query_string)
+        raw_results << query_call&.to_a
+        query_call&.free
+
+        while client.more_results?
+          client.next_result
+          query_call = client.store_result
+          raw_results << query_call&.to_a
+          query_call&.free
+        end
+
+        results = raw_results.compact
+        results
+      ensure
+        client&.abandon_results!
       end
 
-      results.map(&:to_a)
+      results
     end
 
-    # This method is called to use a client within a transaction
+    # Executes a block within a database transaction.
+    #
+    # @yield [client] block executed between BEGIN and COMMIT
+    # @yieldparam client [Mysql2::Client]
+    # @return [Object] block result
+    # @raise [ArgumentError] when no block is given
+    # @raise [StandardError] re-raises any exception after rollback
     def transaction
       raise ArgumentError, 'No block was given' unless block_given?
 
       with_client do |client|
-        begin
-          client.query('BEGIN')
-          yield client
-          client.query('COMMIT')
-        rescue StandardError => e
-          client.query('ROLLBACK')
-          raise e
-        end
+        client.query('BEGIN')
+        yield client
+        client.query('COMMIT')
+      rescue StandardError => e
+        client.query('ROLLBACK')
+        raise e
       end
     end
 
@@ -146,20 +184,21 @@ module MysqlFramework
       }
     end
 
+    def with_new_client
+      client = new_client
+      yield client
+    ensure
+      client&.close
+    end
+
     def new_client
       Mysql2::Client.new(@options)
     end
 
     def connection_pool_enabled?
-      @connection_pool_enabled ||= ENV.fetch('MYSQL_CONNECTION_POOL_ENABLED', 'true').casecmp?('true')
-    end
+      return @connection_pool_enabled unless @connection_pool_enabled.nil?
 
-    def start_pool_size
-      @start_pool_size ||= Integer(ENV.fetch('MYSQL_START_POOL_SIZE', 1))
-    end
-
-    def max_pool_size
-      @max_pool_size ||= Integer(ENV.fetch('MYSQL_MAX_POOL_SIZE', 5))
+      @connection_pool_enabled = ENV.fetch('MYSQL_CONNECTION_POOL_ENABLED', 'true').casecmp?('true')
     end
   end
 end

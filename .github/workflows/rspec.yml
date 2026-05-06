@@ -7,7 +7,7 @@ jobs:
 
     services:
       mysql:
-        image: mysql:5.7
+        image: mysql:8.0
         ports:
           - 3306:3306
         env:
@@ -19,19 +19,11 @@ jobs:
           - 6379:6379
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 2.4
+          ruby-version: 4.0
           bundler-cache: true
 
       - name: Run tests
         run: bundle exec rspec
-
-      - name: Code Coverage
-        uses: paambaati/codeclimate-action@v2.7.5
-        env:
-          CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
-        with:
-          coverageLocations: |
-            ${{github.workspace}}/coverage/.resultset.json:simplecov

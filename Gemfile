@@ -7,5 +7,6 @@ group :test, :development do
 end
 
 group :test do
-  gem 'simplecov', '0.17.1', require: false
+  gem 'simplecov', require: false
+  gem 'debug', require: false
 end

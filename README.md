@@ -34,8 +34,11 @@ gem 'mysql_framework'
 
 #### MySQL Connection Pooling Variables
 
-* `MYSQL_START_POOL_SIZE` - how many connections should be created by default (default: `1`)
+* `MYSQL_CONNECTION_POOL_ENABLED` - enables/disables pooling (default: `true`)
 * `MYSQL_MAX_POOL_SIZE` - how many connections should the pool be allowed to grow to (default: `5`)
+* `MYSQL_POOL_TIMEOUT` - how long to wait for a pooled connection before timing out (default: `5` seconds)
+* `MYSQL_POOL_IDLE_TIMEOUT` - how long a pooled connection can remain idle before being reaped (default: `300` seconds)
+* `MYSQL_POOL_IDLE_REAP_TIME` - time interval between background thread checking for idle connections to reap (default: `60` seconds)
 
 #### MySQL Migration Variables
 
@@ -161,7 +164,7 @@ MysqlFramework::Connector.new(options)
 
 #### #setup
 
-Sets up the connection pooling. Creates `ENV['MYSQL_START_POOL_SIZE']` `Mysql2::Client` instances up front. This is provided as a separate method to allow for use within process forking where connections would need to be created after forking the process.
+Sets up connection pooling using `connection_pool` with `ENV['MYSQL_MAX_POOL_SIZE']` and `ENV['MYSQL_POOL_TIMEOUT']`. Connections are created lazily by the pool when first needed.
 
 ```ruby
 connector.setup
@@ -169,7 +172,7 @@ connector.setup
 
 #### #dispose
 
-Closes all the `Mysql2::Client` connections and removes the connection pool. Intended as a clean-up method to be used on process fork shutdown.
+Closes pooled `Mysql2::Client` connections and removes the pool. Intended as a clean-up method to be used on process fork shutdown.
 
 ```ruby
 connector.dispose
@@ -177,7 +180,8 @@ connector.dispose
 
 #### #check_out
 
-Check out a client from the connection pool. Will create new `Mysql2::Client` instances up-to `ENV['MYSQL_MAX_POOL_SIZE']` times if no idle connections are available.
+Checks out a `Mysql2::Client` instance from the pool, sanitizes it, and returns it.
+When pooling is disabled, it returns a newly created client.
 
 ```ruby
 client = connector.check_out
@@ -185,7 +189,8 @@ client = connector.check_out
 
 #### #check_in
 
-Check in a client to the connection pool
+Checks a client back in to the pool.
+When pooling is disabled, it closes the provided client.
 
 ```ruby
 client = connector.check_out
@@ -195,7 +200,17 @@ connector.check_in(client)
 
 #### #with_client
 
-Called with a block. The method checks out a client from the pool and yields it to the block. Finally it ensures that the client is always checked back into the pool.
+Called with a block. The method obtains a client (from the pool when enabled), yields it to the block, and guarantees cleanup.
+
+When pooling is enabled, it uses the pool lifecycle (`ConnectionPool#with`) and supports optional discarding of the current pooled connection:
+
+```ruby
+connector.with_client(discard_current_pool_connection: true) do |client|
+  # use client
+end
+```
+
+When pooling is disabled, it creates a fresh client for the block and closes it afterwards.
 
 ```ruby
 connector.with_client do |client|
@@ -203,6 +218,17 @@ connector.with_client do |client|
     SELECT * FROM gems
   SQL
 end
+```
+
+**Warning: re-entrant connections within the same thread**
+
+The `connection_pool` gem implements thread-local connection tracking. When a thread already holds a connection via `with_client` (or `check_out`), any nested call to `with_client` or `check_out` on the **same thread** returns the **same connection** — it does not check out a second one from the pool.
+
+This means that if you fire an async query on a connection and then attempt to run a second query (e.g. via `run_query` or `connector.query`) from within the same `with_client` block, the nested call will receive the already-checked-out connection. Sanitization will then fail with:
+
+```
+Connection sanitization failed: This connection is still waiting for a result,
+try again once you have the result
 ```
 
 It can optionally accept an existing client to avoid starting new connections in the middle of a transaction. This can be used to ensure that a series of queries are wrapped by the same transaction.
@@ -280,8 +306,63 @@ The default options used to initialise MySQL2::Client instances:
   database: ENV.fetch('MYSQL_DATABASE'),
   username: ENV.fetch('MYSQL_USERNAME'),
   password: ENV.fetch('MYSQL_PASSWORD'),
-  reconnect: true
+  reconnect: true,
+  read_timeout: Integer(ENV.fetch('MYSQL_READ_TIMEOUT', 30)),
+  write_timeout: Integer(ENV.fetch('MYSQL_WRITE_TIMEOUT', 10))
 }
+```
+
+### MysqlFramework::Stats::AwsMetricPublisher
+
+Publishes connection-pool metrics (`size`, `available`, `idle`) to AWS CloudWatch on a configurable interval via a background thread.
+
+**Setup sequence** — the connector must be set up before the publisher is started:
+
+```ruby
+connector = MysqlFramework::Connector.new
+connector.setup  # must come first
+
+publisher = MysqlFramework::Stats::AwsMetricPublisher.new(
+  connector: connector,
+  publish_interval: 300  # seconds, default
+)
+publisher.start
+```
+
+On shutdown, stop the publisher before disposing the connector:
+
+```ruby
+publisher.stop
+connector.dispose
+```
+
+#### Customising CloudWatch dimensions and namespace
+
+Use `MysqlFramework::Stats::DimensionMap` to configure the CloudWatch namespace and dimensions. Each attribute falls back to the corresponding environment variable when not set explicitly:
+
+| Attribute | ENV fallback | CloudWatch dimension |
+|---|---|---|
+| `service_name` | `SERVICE_NAME` | `ServiceName` |
+| `application` | `APPLICATION` | `Application` |
+| `environment` | `ENVIRONMENT` | `Environment` |
+| `landscape` | `LANDSCAPE` | `Landscape` |
+| `namespace` | `AWS_METRICS_NAMESPACE` | (namespace, default: `MysqlFramework`) |
+
+```ruby
+dimension_map = MysqlFramework::Stats::DimensionMap.new(
+  service_name: 'my-service',
+  application:  'my-app',
+  environment:  'production',
+  landscape:    'us-east',
+  namespace:    'MyCompany/MySQL'
+)
+
+publisher = MysqlFramework::Stats::AwsMetricPublisher.new(
+  connector:        connector,
+  dimension_map:    dimension_map,
+  publish_interval: 60
+)
+publisher.start
 ```
 
 ### MysqlFramework::SqlCondition
