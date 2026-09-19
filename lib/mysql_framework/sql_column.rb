@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module MysqlFramework
-  # This class is used to represent a sql column within a table
+  # This class is used to represent a SQL column within a table
   class SqlColumn
     def initialize(table:, column:)
       @table = table

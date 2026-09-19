@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module MysqlFramework
-# This class is used to represent a Sql Condition for a column.
+# This class is used to represent a SQL condition for a column.
   class SqlCondition
     NIL_COMPARISONS = ['IS NULL', 'IS NOT NULL'].freeze
 
@@ -25,7 +25,7 @@ module MysqlFramework
       @value = value
     end
 
-    # This method is called to get the condition as a string for a sql prepared statement
+    # This method is called to get the condition as a string for a SQL prepared statement
     #
     # @return [String]
     def to_s

@@ -235,7 +235,7 @@ module MysqlFramework
     # @return SqlQuery
     # e.g.
     # query.insert('users')
-    # .into('id', first_name', 'login_count')
+    # .into('id', 'first_name', 'login_count')
     # .values(1, 'Bob', 1)
     # .on_duplicate(
     #   {
